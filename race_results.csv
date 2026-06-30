@@ -1,0 +1,177 @@
+race_id,round,driver,team,position
+australian_grand_prix,1,George Russell,Mercedes,1
+australian_grand_prix,1,Andrea Kimi Antonelli,Mercedes,2
+australian_grand_prix,1,Charles Leclerc,Ferrari,3
+australian_grand_prix,1,Lewis Hamilton,Ferrari,4
+australian_grand_prix,1,Lando Norris,McLaren,5
+australian_grand_prix,1,Max Verstappen,Red Bull,6
+australian_grand_prix,1,Oliver Bearman,Haas F1 Team,DNF
+australian_grand_prix,1,Arvid Lindblad,RB F1 Team,DNF
+australian_grand_prix,1,Gabriel Bortoleto,Audi,DNF
+australian_grand_prix,1,Pierre Gasly,Alpine F1 Team,DNF
+australian_grand_prix,1,Esteban Ocon,Haas F1 Team,DNF
+australian_grand_prix,1,Alexander Albon,Williams,DNF
+australian_grand_prix,1,Liam Lawson,RB F1 Team,DNF
+australian_grand_prix,1,Franco Colapinto,Alpine F1 Team,DNF
+australian_grand_prix,1,Carlos Sainz,Williams,DNF
+australian_grand_prix,1,Sergio Pérez,Cadillac F1 Team,DNF
+australian_grand_prix,1,Lance Stroll,Aston Martin,DNF
+australian_grand_prix,1,Fernando Alonso,Aston Martin,DNF
+australian_grand_prix,1,Valtteri Bottas,Cadillac F1 Team,DNF
+australian_grand_prix,1,Isack Hadjar,Red Bull,DNF
+australian_grand_prix,1,Oscar Piastri,McLaren,DNF
+australian_grand_prix,1,Nico Hülkenberg,Audi,DNF
+chinese_grand_prix,2,Andrea Kimi Antonelli,Mercedes,1
+chinese_grand_prix,2,George Russell,Mercedes,2
+chinese_grand_prix,2,Lewis Hamilton,Ferrari,3
+chinese_grand_prix,2,Charles Leclerc,Ferrari,4
+chinese_grand_prix,2,Oliver Bearman,Haas F1 Team,5
+chinese_grand_prix,2,Pierre Gasly,Alpine F1 Team,6
+chinese_grand_prix,2,Liam Lawson,RB F1 Team,7
+chinese_grand_prix,2,Isack Hadjar,Red Bull,8
+chinese_grand_prix,2,Carlos Sainz,Williams,DNF
+chinese_grand_prix,2,Franco Colapinto,Alpine F1 Team,DNF
+chinese_grand_prix,2,Nico Hülkenberg,Audi,DNF
+chinese_grand_prix,2,Arvid Lindblad,RB F1 Team,DNF
+chinese_grand_prix,2,Valtteri Bottas,Cadillac F1 Team,DNF
+chinese_grand_prix,2,Esteban Ocon,Haas F1 Team,DNF
+chinese_grand_prix,2,Sergio Pérez,Cadillac F1 Team,DNF
+chinese_grand_prix,2,Max Verstappen,Red Bull,DNF
+chinese_grand_prix,2,Fernando Alonso,Aston Martin,DNF
+chinese_grand_prix,2,Lance Stroll,Aston Martin,DNF
+chinese_grand_prix,2,Oscar Piastri,McLaren,DNF
+chinese_grand_prix,2,Lando Norris,McLaren,DNF
+chinese_grand_prix,2,Gabriel Bortoleto,Audi,DNF
+chinese_grand_prix,2,Alexander Albon,Williams,DNF
+japanese_grand_prix,3,Andrea Kimi Antonelli,Mercedes,1
+japanese_grand_prix,3,Oscar Piastri,McLaren,2
+japanese_grand_prix,3,Charles Leclerc,Ferrari,3
+japanese_grand_prix,3,George Russell,Mercedes,4
+japanese_grand_prix,3,Lando Norris,McLaren,5
+japanese_grand_prix,3,Lewis Hamilton,Ferrari,6
+japanese_grand_prix,3,Pierre Gasly,Alpine F1 Team,7
+japanese_grand_prix,3,Max Verstappen,Red Bull,8
+japanese_grand_prix,3,Liam Lawson,RB F1 Team,9
+japanese_grand_prix,3,Esteban Ocon,Haas F1 Team,10
+japanese_grand_prix,3,Nico Hülkenberg,Audi,11
+japanese_grand_prix,3,Isack Hadjar,Red Bull,12
+japanese_grand_prix,3,Gabriel Bortoleto,Audi,13
+japanese_grand_prix,3,Arvid Lindblad,RB F1 Team,14
+japanese_grand_prix,3,Carlos Sainz,Williams,15
+japanese_grand_prix,3,Franco Colapinto,Alpine F1 Team,16
+japanese_grand_prix,3,Sergio Pérez,Cadillac F1 Team,17
+japanese_grand_prix,3,Fernando Alonso,Aston Martin,DNF
+japanese_grand_prix,3,Valtteri Bottas,Cadillac F1 Team,DNF
+japanese_grand_prix,3,Alexander Albon,Williams,DNF
+japanese_grand_prix,3,Lance Stroll,Aston Martin,DNF
+japanese_grand_prix,3,Oliver Bearman,Haas F1 Team,DNF
+miami_grand_prix,4,Andrea Kimi Antonelli,Mercedes,1
+miami_grand_prix,4,Lando Norris,McLaren,2
+miami_grand_prix,4,Oscar Piastri,McLaren,3
+miami_grand_prix,4,George Russell,Mercedes,4
+miami_grand_prix,4,Max Verstappen,Red Bull,5
+miami_grand_prix,4,Lewis Hamilton,Ferrari,6
+miami_grand_prix,4,Franco Colapinto,Alpine F1 Team,7
+miami_grand_prix,4,Charles Leclerc,Ferrari,8
+miami_grand_prix,4,Carlos Sainz,Williams,9
+miami_grand_prix,4,Alexander Albon,Williams,10
+miami_grand_prix,4,Oliver Bearman,Haas F1 Team,DNF
+miami_grand_prix,4,Gabriel Bortoleto,Audi,DNF
+miami_grand_prix,4,Esteban Ocon,Haas F1 Team,DNF
+miami_grand_prix,4,Arvid Lindblad,RB F1 Team,DNF
+miami_grand_prix,4,Fernando Alonso,Aston Martin,DNF
+miami_grand_prix,4,Sergio Pérez,Cadillac F1 Team,DNF
+miami_grand_prix,4,Lance Stroll,Aston Martin,DNF
+miami_grand_prix,4,Valtteri Bottas,Cadillac F1 Team,DNF
+miami_grand_prix,4,Nico Hülkenberg,Audi,DNF
+miami_grand_prix,4,Liam Lawson,RB F1 Team,DNF
+miami_grand_prix,4,Pierre Gasly,Alpine F1 Team,DNF
+miami_grand_prix,4,Isack Hadjar,Red Bull,DNF
+canadian_grand_prix,5,Andrea Kimi Antonelli,Mercedes,1
+canadian_grand_prix,5,Lewis Hamilton,Ferrari,2
+canadian_grand_prix,5,Max Verstappen,Red Bull,3
+canadian_grand_prix,5,Charles Leclerc,Ferrari,4
+canadian_grand_prix,5,Isack Hadjar,Red Bull,DNF
+canadian_grand_prix,5,Franco Colapinto,Alpine F1 Team,DNF
+canadian_grand_prix,5,Liam Lawson,RB F1 Team,DNF
+canadian_grand_prix,5,Pierre Gasly,Alpine F1 Team,DNF
+canadian_grand_prix,5,Carlos Sainz,Williams,DNF
+canadian_grand_prix,5,Oliver Bearman,Haas F1 Team,DNF
+canadian_grand_prix,5,Oscar Piastri,McLaren,DNF
+canadian_grand_prix,5,Nico Hülkenberg,Audi,DNF
+canadian_grand_prix,5,Gabriel Bortoleto,Audi,DNF
+canadian_grand_prix,5,Esteban Ocon,Haas F1 Team,DNF
+canadian_grand_prix,5,Lance Stroll,Aston Martin,DNF
+canadian_grand_prix,5,Valtteri Bottas,Cadillac F1 Team,DNF
+canadian_grand_prix,5,Sergio Pérez,Cadillac F1 Team,DNF
+canadian_grand_prix,5,Lando Norris,McLaren,DNF
+canadian_grand_prix,5,George Russell,Mercedes,DNF
+canadian_grand_prix,5,Fernando Alonso,Aston Martin,DNF
+canadian_grand_prix,5,Alexander Albon,Williams,DNF
+canadian_grand_prix,5,Arvid Lindblad,RB F1 Team,DNF
+monaco_grand_prix,6,Andrea Kimi Antonelli,Mercedes,1
+monaco_grand_prix,6,Lewis Hamilton,Ferrari,2
+monaco_grand_prix,6,Pierre Gasly,Alpine F1 Team,3
+monaco_grand_prix,6,Isack Hadjar,Red Bull,4
+monaco_grand_prix,6,Oscar Piastri,McLaren,5
+monaco_grand_prix,6,Liam Lawson,RB F1 Team,6
+monaco_grand_prix,6,Arvid Lindblad,RB F1 Team,7
+monaco_grand_prix,6,Alexander Albon,Williams,8
+monaco_grand_prix,6,Esteban Ocon,Haas F1 Team,9
+monaco_grand_prix,6,Fernando Alonso,Aston Martin,10
+monaco_grand_prix,6,Gabriel Bortoleto,Audi,11
+monaco_grand_prix,6,George Russell,Mercedes,12
+monaco_grand_prix,6,Nico Hülkenberg,Audi,13
+monaco_grand_prix,6,Franco Colapinto,Alpine F1 Team,14
+monaco_grand_prix,6,Sergio Pérez,Cadillac F1 Team,15
+monaco_grand_prix,6,Carlos Sainz,Williams,DNF
+monaco_grand_prix,6,Charles Leclerc,Ferrari,DNF
+monaco_grand_prix,6,Lance Stroll,Aston Martin,DNF
+monaco_grand_prix,6,Lando Norris,McLaren,DNF
+monaco_grand_prix,6,Oliver Bearman,Haas F1 Team,DNF
+monaco_grand_prix,6,Valtteri Bottas,Cadillac F1 Team,DNF
+monaco_grand_prix,6,Max Verstappen,Red Bull,DNF
+barcelona_grand_prix,7,Lewis Hamilton,Ferrari,1
+barcelona_grand_prix,7,George Russell,Mercedes,2
+barcelona_grand_prix,7,Lando Norris,McLaren,3
+barcelona_grand_prix,7,Max Verstappen,Red Bull,4
+barcelona_grand_prix,7,Oscar Piastri,McLaren,5
+barcelona_grand_prix,7,Isack Hadjar,Red Bull,DNF
+barcelona_grand_prix,7,Pierre Gasly,Alpine F1 Team,DNF
+barcelona_grand_prix,7,Liam Lawson,RB F1 Team,DNF
+barcelona_grand_prix,7,Arvid Lindblad,RB F1 Team,DNF
+barcelona_grand_prix,7,Franco Colapinto,Alpine F1 Team,DNF
+barcelona_grand_prix,7,Gabriel Bortoleto,Audi,DNF
+barcelona_grand_prix,7,Carlos Sainz,Williams,DNF
+barcelona_grand_prix,7,Esteban Ocon,Haas F1 Team,DNF
+barcelona_grand_prix,7,Sergio Pérez,Cadillac F1 Team,DNF
+barcelona_grand_prix,7,Charles Leclerc,Ferrari,DNF
+barcelona_grand_prix,7,Andrea Kimi Antonelli,Mercedes,DNF
+barcelona_grand_prix,7,Oliver Bearman,Haas F1 Team,DNF
+barcelona_grand_prix,7,Alexander Albon,Williams,DNF
+barcelona_grand_prix,7,Fernando Alonso,Aston Martin,DNF
+barcelona_grand_prix,7,Nico Hülkenberg,Audi,DNF
+barcelona_grand_prix,7,Valtteri Bottas,Cadillac F1 Team,DNF
+barcelona_grand_prix,7,Lance Stroll,Aston Martin,DNF
+austrian_grand_prix,8,George Russell,Mercedes,1
+austrian_grand_prix,8,Max Verstappen,Red Bull,2
+austrian_grand_prix,8,Andrea Kimi Antonelli,Mercedes,3
+austrian_grand_prix,8,Oscar Piastri,McLaren,4
+austrian_grand_prix,8,Lewis Hamilton,Ferrari,5
+austrian_grand_prix,8,Isack Hadjar,Red Bull,6
+austrian_grand_prix,8,Lando Norris,McLaren,7
+austrian_grand_prix,8,Charles Leclerc,Ferrari,8
+austrian_grand_prix,8,Liam Lawson,RB F1 Team,DNF
+austrian_grand_prix,8,Arvid Lindblad,RB F1 Team,DNF
+austrian_grand_prix,8,Gabriel Bortoleto,Audi,DNF
+austrian_grand_prix,8,Nico Hülkenberg,Audi,DNF
+austrian_grand_prix,8,Pierre Gasly,Alpine F1 Team,DNF
+austrian_grand_prix,8,Oliver Bearman,Haas F1 Team,DNF
+austrian_grand_prix,8,Franco Colapinto,Alpine F1 Team,DNF
+austrian_grand_prix,8,Esteban Ocon,Haas F1 Team,DNF
+austrian_grand_prix,8,Alexander Albon,Williams,DNF
+austrian_grand_prix,8,Fernando Alonso,Aston Martin,DNF
+austrian_grand_prix,8,Lance Stroll,Aston Martin,DNF
+austrian_grand_prix,8,Carlos Sainz,Williams,DNF
+austrian_grand_prix,8,Sergio Pérez,Cadillac F1 Team,DNF
+austrian_grand_prix,8,Valtteri Bottas,Cadillac F1 Team,DNF
