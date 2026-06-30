@@ -4,6 +4,7 @@ import numpy as np
 import requests
 import json
 import base64
+from io import StringIO
 
 # --- STREAMLIT CONFIGURATION ---
 st.set_page_config(page_title="F1 2026 Fantasy Tracker", layout="wide", page_icon="🏎️")
@@ -19,14 +20,17 @@ RESULTS_PATH = "race_results.csv"
 # --- GITHUB FILE HELPER FUNCTIONS ---
 def load_file_from_github(file_path, is_json=True):
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
+    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"} if GITHUB_TOKEN else {}
     response = requests.get(url, headers=headers)
+    
     if response.status_code == 200:
         content = base64.b64decode(response.json()["content"]).decode("utf-8")
-        return json.loads(content) if is_json else pd.read_csv(url)
+        if is_json:
+            return json.loads(content)
+        else:
+            return pd.read_csv(StringIO(content))
     else:
-        st.error(f"Failed to fetch {file_path} from GitHub. Check your repo configuration settings.")
-        return {} if is_json else pd.DataFrame()
+        return {} if is_json else pd.DataFrame(columns=["race_id", "round", "driver", "team", "position"])
 
 def save_json_to_github(file_path, data, commit_message="Update configurations"):
     if not GITHUB_TOKEN:
@@ -87,14 +91,11 @@ def process_standings(config, results_df):
 
 # --- DATA ACQUISITION LAYER ---
 config_data = load_file_from_github(CONFIG_PATH, is_json=True)
+results_data = load_file_from_github(RESULTS_PATH, is_json=False)
+
 if not config_data:
     st.info("Loading template configurations. Please connect your GitHub account via Streamlit Secrets.")
     config_data = {"seats": {}, "history": []}
-
-try:
-    results_data = pd.read_csv(f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{RESULTS_PATH}")
-except Exception:
-    results_data = pd.DataFrame(columns=["race_id", "round", "driver", "team", "position"])
 
 # --- RENDER APPLICATION TABS ---
 tab_leaderboard, tab_simulation, tab_commissioner = st.tabs([
@@ -222,5 +223,6 @@ with tab_commissioner:
             success = save_json_to_github(CONFIG_PATH, config_data, "Update player draft seat mappings")
             if success:
                 st.success("Draft configurations successfully committed to your GitHub Repository!")
+                st.rerun()
             else:
                 st.error("Failed to commit updates to GitHub. Verify your access tokens.")
