@@ -1,0 +1,32 @@
+name: F1 Race Results Ingestion
+
+on:
+  schedule:
+    # Runs every Monday at 12:00 UTC (after a race weekend)
+    - cron: '0 12 * * 1'
+  workflow_dispatch: # This allows you to click a button to run it manually
+
+permissions:
+  contents: write # Grants the action permission to push file updates
+
+jobs:
+  run-ingestion:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install pandas requests
+
+      - name: Execute API Fetch and Logic Loop
+        env:
+          # Uses the default token provided by GitHub Actions
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python ingest_results.py
