@@ -5,6 +5,7 @@ import requests
 import json
 import base64
 from io import StringIO
+import plotly.express as px
 
 # --- STREAMLIT CONFIGURATION ---
 st.set_page_config(page_title="F1 2026 Fantasy Tracker", layout="wide", page_icon="🏎️")
@@ -16,6 +17,15 @@ REPO_OWNER = st.secrets.get("REPO_OWNER", "")
 REPO_NAME = st.secrets.get("REPO_NAME", "")
 CONFIG_PATH = "seats_config.json"
 RESULTS_PATH = "race_results.csv"
+
+# --- LEAGUE COLOR & EMOJI MAPPINGS ---
+PLAYER_FORMAT = {
+    "Carly": {"emoji": "🔵", "color": "#636EFA"},   # Plotly Blue
+    "Chief": {"emoji": "🔴", "color": "#EF553B"},   # Plotly Red
+    "Kennedy": {"emoji": "🟢", "color": "#00CC96"}, # Plotly Green
+    "Stuebe": {"emoji": "🟣", "color": "#AB63FA"},  # Plotly Purple
+    "Unassigned": {"emoji": "⚪", "color": "#CCCCCC"}
+}
 
 # --- GITHUB FILE HELPER FUNCTIONS ---
 def load_file_from_github(file_path, is_json=True):
@@ -80,11 +90,13 @@ def process_standings(config, results_df):
     results_df["points"] = results_df["position"].apply(compute_points)
     merged = pd.merge(results_df, hist_df, on=["round", "driver"], how="inner")
     
+    # Calculate Leaderboard
     player_standings = merged.groupby("player_owner")["points"].sum().reset_index()
     player_standings = player_standings.sort_values(by="points", ascending=False).reset_index(drop=True)
     player_standings.index += 1
     player_standings.index.name = "Rank"
     
+    # Generate Timeline
     timeline = merged.groupby(["round", "player_owner"])["points"].sum().groupby(level=1).cumsum().reset_index()
     
     return player_standings, timeline
@@ -114,11 +126,55 @@ with tab_leaderboard:
             col1, col2 = st.columns([1, 2])
             with col1:
                 st.subheader("Current Leaderboard")
-                st.dataframe(standings, use_container_width=True)
+                # Format dataframe with emojis for UI
+                display_df = standings.copy()
+                display_df["Player"] = display_df["player_owner"].apply(
+                    lambda p: f"{PLAYER_FORMAT.get(p, PLAYER_FORMAT['Unassigned'])['emoji']} {p}"
+                )
+                display_df = display_df[["Player", "points"]].rename(columns={"points": "Total Points"})
+                st.dataframe(display_df, use_container_width=True)
+                
             with col2:
                 st.subheader("Points Progression Tracker")
-                pivot_timeline = timeline_df.pivot(index="round", columns="player_owner", values="points").fillna(0)
-                st.line_chart(pivot_timeline)
+                
+                # Apply emoji format and map exact hex colors for Plotly
+                timeline_df["Player"] = timeline_df["player_owner"].apply(
+                    lambda p: f"{PLAYER_FORMAT.get(p, PLAYER_FORMAT['Unassigned'])['emoji']} {p}"
+                )
+                
+                color_mapping = {
+                    f"{v['emoji']} {k}": v["color"] for k, v in PLAYER_FORMAT.items()
+                }
+                
+                # Create a custom label column: only show the Player name on the most recent completed round
+                max_round = timeline_df["round"].max()
+                timeline_df["line_label"] = timeline_df.apply(
+                    lambda row: row["Player"] if row["round"] == max_round else None, 
+                    axis=1
+                )
+                
+                # Build the interactive Plotly Express chart
+                fig = px.line(
+                    timeline_df, 
+                    x="round", 
+                    y="points", 
+                    color="Player", 
+                    markers=True, 
+                    text="line_label",
+                    color_discrete_map=color_mapping,
+                    labels={"round": "Race Round", "points": "Total Points"}
+                )
+                
+                # Position the text label cleanly to the right of the final dot 
+                fig.update_traces(textposition="middle right")
+                
+                # Ensure X-axis only shows whole numbers and add right-side margin for labels
+                fig.update_layout(
+                    xaxis=dict(tickmode='linear', dtick=1),
+                    margin=dict(r=100) 
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Awaiting initial draft mapping configuration profiles.")
     else:
@@ -180,8 +236,9 @@ with tab_simulation:
                                 
                     summary_data = []
                     for p in players:
+                        display_name = f"{PLAYER_FORMAT.get(p, PLAYER_FORMAT['Unassigned'])['emoji']} {p}"
                         summary_data.append({
-                            "Player": p,
+                            "Player": display_name,
                             "Win Probability": f"{rank_counts[p][0] / 10}%",
                             "Podium Probability": f"{sum(rank_counts[p][:3]) / 10}%",
                             "Wooden Spoon Probability": f"{rank_counts[p][3] / 10}%"
@@ -198,31 +255,41 @@ with tab_commissioner:
     
     if config_data.get("seats"):
         st.subheader("Manage Active Rosters")
-        st.write("Assign players to their 5 specific team seats. Saving configuration updates writes directly back to GitHub.")
         
-        grid_rows = []
-        for seat_key, data in config_data["seats"].items():
-            grid_rows.append({
-                "Seat Key": seat_key,
-                "Current Driver": data["current_driver"],
-                "Player Owner": data["player_owner"]
-            })
-        df_editor = pd.DataFrame(grid_rows)
+        # Insert Password Protection
+        admin_password = st.text_input("Enter Commissioner Password", type="password")
         
-        edited_df = st.data_editor(
-            df_editor, 
-            column_config={"Player Owner": st.column_config.SelectboxColumn(options=["Unassigned", "Carly", "Chief", "Kennedy", "Stuebe"])},
-            disabled=["Seat Key", "Current Driver"],
-            use_container_width=True
-        )
-        
-        if st.button("Commit and Push Alignment to GitHub"):
-            for _, row in edited_df.iterrows():
-                config_data["seats"][row["Seat Key"]]["player_owner"] = row["Player Owner"]
-                
-            success = save_json_to_github(CONFIG_PATH, config_data, "Update player draft seat mappings")
-            if success:
-                st.success("Draft configurations successfully committed to your GitHub Repository!")
-                st.rerun()
-            else:
-                st.error("Failed to commit updates to GitHub. Verify your access tokens.")
+        if admin_password == "Kennedy":
+            st.write("Assign players to their 5 specific team seats. Saving configuration updates writes directly back to GitHub.")
+            
+            grid_rows = []
+            for seat_key, data in config_data["seats"].items():
+                grid_rows.append({
+                    "Seat Key": seat_key,
+                    "Current Driver": data["current_driver"],
+                    "Player Owner": data["player_owner"]
+                })
+            df_editor = pd.DataFrame(grid_rows)
+            
+            # We intentionally do not use emojis here so the raw names stay clean in the JSON mapping
+            edited_df = st.data_editor(
+                df_editor, 
+                column_config={"Player Owner": st.column_config.SelectboxColumn(options=["Unassigned", "Carly", "Chief", "Kennedy", "Stuebe"])},
+                disabled=["Seat Key", "Current Driver"],
+                use_container_width=True
+            )
+            
+            if st.button("Commit and Push Alignment to GitHub"):
+                for _, row in edited_df.iterrows():
+                    config_data["seats"][row["Seat Key"]]["player_owner"] = row["Player Owner"]
+                    
+                success = save_json_to_github(CONFIG_PATH, config_data, "Update player draft seat mappings")
+                if success:
+                    st.success("Draft configurations successfully committed to your GitHub Repository!")
+                    st.rerun()
+                else:
+                    st.error("Failed to commit updates to GitHub. Verify your access tokens.")
+                    
+        elif admin_password:
+            # Show an error if they try to guess it and get it wrong
+            st.error("Incorrect password. Access denied.")
