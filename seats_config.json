@@ -1,97 +1,27 @@
 {
   "seats": {
-    "mercedes_1": {
-      "current_driver": "Andrea Kimi Antonelli",
-      "player_owner": "Carly"
-    },
-    "mercedes_2": {
-      "current_driver": "Kimi Antonelli",
-      "player_owner": "Chief"
-    },
-    "mclaren_1": {
-      "current_driver": "Lando Norris",
-      "player_owner": "Kennedy"
-    },
-    "mclaren_2": {
-      "current_driver": "Oscar Piastri",
-      "player_owner": "Stuebe"
-    },
-    "ferrari_1": {
-      "current_driver": "Charles Leclerc",
-      "player_owner": "Stuebe"
-    },
-    "ferrari_2": {
-      "current_driver": "Lewis Hamilton",
-      "player_owner": "Carly"
-    },
-    "red_bull_1": {
-      "current_driver": "Max Verstappen",
-      "player_owner": "Chief"
-    },
-    "red_bull_2": {
-      "current_driver": "Isack Hadjar",
-      "player_owner": "Chief"
-    },
-    "williams_1": {
-      "current_driver": "Carlos Sainz",
-      "player_owner": "Kennedy"
-    },
-    "williams_2": {
-      "current_driver": "Alex Albon",
-      "player_owner": "Carly"
-    },
-    "alpine_1": {
-      "current_driver": "Pierre Gasly",
-      "player_owner": "Stuebe"
-    },
-    "alpine_2": {
-      "current_driver": "Franco Colapinto",
-      "player_owner": "Kennedy"
-    },
-    "haas_1": {
-      "current_driver": "Oliver Bearman",
-      "player_owner": "Kennedy"
-    },
-    "haas_2": {
-      "current_driver": "Esteban Ocon",
-      "player_owner": "Stuebe"
-    },
-    "audi_1": {
-      "current_driver": "Nico H\u00fclkenberg",
-      "player_owner": "Kennedy"
-    },
-    "audi_2": {
-      "current_driver": "Gabriel Bortoleto",
-      "player_owner": "Stuebe"
-    },
-    "racing_bulls_1": {
-      "current_driver": "Arvid Lindblad",
-      "player_owner": "Carly"
-    },
-    "racing_bulls_2": {
-      "current_driver": "Liam Lawson",
-      "player_owner": "Chief"
-    },
-    "aston_martin_1": {
-      "current_driver": "Fernando Alonso",
-      "player_owner": "Chief"
-    },
-    "aston_martin_2": {
-      "current_driver": "Lance Stroll",
-      "player_owner": "Unassigned"
-    },
-    "cadillac_1": {
-      "current_driver": "Valtteri Bottas",
-      "player_owner": "Carly"
-    },
-    "cadillac_2": {
-      "current_driver": "Sergio Perez",
-      "player_owner": "Unassigned"
-    }
+    "mercedes_1": {"current_driver": "George Russell", "player_owner": "Carly"},
+    "mercedes_2": {"current_driver": "Kimi Antonelli", "player_owner": "Chief"},
+    "mclaren_1": {"current_driver": "Lando Norris", "player_owner": "Kennedy"},
+    "mclaren_2": {"current_driver": "Oscar Piastri", "player_owner": "Stuebe"},
+    "ferrari_1": {"current_driver": "Charles Leclerc", "player_owner": "Stuebe"},
+    "ferrari_2": {"current_driver": "Lewis Hamilton", "player_owner": "Carly"},
+    "red_bull_1": {"current_driver": "Max Verstappen", "player_owner": "Chief"},
+    "red_bull_2": {"current_driver": "Isack Hadjar", "player_owner": "Chief"},
+    "williams_1": {"current_driver": "Carlos Sainz", "player_owner": "Kennedy"},
+    "williams_2": {"current_driver": "Alex Albon", "player_owner": "Carly"},
+    "alpine_1": {"current_driver": "Pierre Gasly", "player_owner": "Stuebe"},
+    "alpine_2": {"current_driver": "Franco Colapinto", "player_owner": "Kennedy"},
+    "haas_1": {"current_driver": "Ollie Bearman", "player_owner": "Kennedy"},
+    "haas_2": {"current_driver": "Esteban Ocon", "player_owner": "Stuebe"},
+    "audi_1": {"current_driver": "Nico Hulkenberg", "player_owner": "Kennedy"},
+    "audi_2": {"current_driver": "Gabriel Bortoleto", "player_owner": "Stuebe"},
+    "racing_bulls_1": {"current_driver": "Arvid Lindblad", "player_owner": "Carly"},
+    "racing_bulls_2": {"current_driver": "Liam Lawson", "player_owner": "Chief"},
+    "aston_martin_1": {"current_driver": "Fernando Alonso", "player_owner": "Chief"},
+    "aston_martin_2": {"current_driver": "Lance Stroll", "player_owner": "Unassigned"},
+    "cadillac_1": {"current_driver": "Valtteri Bottas", "player_owner": "Carly"},
+    "cadillac_2": {"current_driver": "Sergio Perez", "player_owner": "Unassigned"}
   },
   "history": []
-
-
-
-
-  
+}
