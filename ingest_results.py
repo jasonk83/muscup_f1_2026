@@ -33,8 +33,8 @@ def push_file_to_github(path, content_str, sha, message):
     requests.put(url, json=payload, headers=HEADERS)
 
 def ingest_latest_race():
-    # 1. Fetch all completed rounds from Jolpica API endpoint
-    api_url = "https://api.jolpi.ca/ergast/f1/current/results.json?limit=30"
+    # 1. Fetch all completed rounds from Jolpica API endpoint (limit increased to bypass pagination)
+    api_url = "https://api.jolpi.ca/ergast/f1/current/results.json?limit=1000"
     response = requests.get(api_url).json()
     
     race_data = response["MRData"]["RaceTable"]["Races"]
