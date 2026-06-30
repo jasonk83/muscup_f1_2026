@@ -5,6 +5,7 @@ import pandas as pd
 import base64
 from io import StringIO
 import sys
+import unicodedata
 
 # Configuration Setup
 GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY", "owner/repo")
@@ -16,6 +17,10 @@ HEADERS = {
     "Authorization": f"token {GITHUB_TOKEN}",
     "Accept": "application/vnd.github.v3+json"
 }
+
+def normalize_string(s):
+    """Removes accents and standardizes text for fuzzy matching."""
+    return unicodedata.normalize('NFKD', s).encode('ASCII', 'ignore').decode('utf-8').lower()
 
 def fetch_file_from_github(path, is_json=True):
     url = f"https://api.github.com/repos/{GITHUB_REPOSITORY}/contents/{path}"
@@ -86,13 +91,17 @@ def ingest_latest_race():
         updates_made = True
         api_results = race.get("Results", [])
         
+        claimed_seats = set()
+        unmatched_drivers = []
+        
+        # --- PASS 1: Exact & Fuzzy Name Auto-Correction ---
         for r in api_results:
             driver_name = f"{r['Driver']['givenName']} {r['Driver']['familyName']}"
+            last_name = r['Driver']['familyName']
             team_name = r["Constructor"]["name"]
+            team_key = team_name.lower().replace(" ", "")
             
-            # --- NEW DNF LOGIC ENFORCEMENT ---
-            # Explicitly checks the status string to ensure strict 0 points for any non-finishers, 
-            # bypassing F1's numerical classification rules for late-race crashes.
+            # Enforce strict DNF point denial
             status = r.get("status", "")
             if status == "Finished" or status.startswith("+"):
                 position = r["position"]
@@ -109,18 +118,29 @@ def ingest_latest_race():
             
             matched_seat = None
             for seat_key, seat_data in config["seats"].items():
-                if seat_key.split("_")[0] in team_name.lower().replace(" ", ""):
-                    if seat_data["current_driver"] == driver_name:
+                if seat_key.split("_")[0] in team_key:
+                    config_name = seat_data["current_driver"]
+                    # If exact match OR the normalized last name is found (fixing Ollie/Oliver and Accents)
+                    if config_name == driver_name or normalize_string(last_name) in normalize_string(config_name):
+                        config["seats"][seat_key]["current_driver"] = driver_name # Auto-correct config to API spelling
                         matched_seat = seat_key
+                        claimed_seats.add(seat_key)
                         break
             
             if not matched_seat:
-                for seat_key, seat_data in config["seats"].items():
-                    if seat_key.split("_")[0] in team_name.lower().replace(" ", ""):
-                        if seat_data["current_driver"] == "Unassigned" or seat_data["current_driver"] != driver_name:
-                            config["seats"][seat_key]["current_driver"] = driver_name
-                            break
+                unmatched_drivers.append((team_key, driver_name))
+                
+        # --- PASS 2: True Mid-Season Swaps ---
+        for team_key, driver_name in unmatched_drivers:
+             for seat_key, seat_data in config["seats"].items():
+                 # Assign to the first available seat in the team that wasn't claimed by a teammate
+                 if seat_key.split("_")[0] in team_key and seat_key not in claimed_seats:
+                     print(f"  -> Mid-Season Swap: Moving {driver_name} into {seat_key}")
+                     config["seats"][seat_key]["current_driver"] = driver_name
+                     claimed_seats.add(seat_key)
+                     break
                             
+        # Log History safely after all seats are resolved
         for seat_key, seat_data in config["seats"].items():
             config["history"].append({
                 "round": round_id,
@@ -132,8 +152,8 @@ def ingest_latest_race():
         new_results_df = pd.DataFrame(all_new_results)
         final_df = pd.concat([existing_df, new_results_df], ignore_index=True) if not existing_df.empty else new_results_df
         
-        push_file_to_github(CONFIG_PATH, json.dumps(config, indent=2), config_sha, "Ingested missing configurations")
-        push_file_to_github(RESULTS_PATH, final_df.to_csv(index=False), csv_sha, "Appended missing race results")
+        push_file_to_github(CONFIG_PATH, json.dumps(config, indent=2), config_sha, "Ingested auto-corrected configurations")
+        push_file_to_github(RESULTS_PATH, final_df.to_csv(index=False), csv_sha, "Appended protected race results")
         print("Catch-up complete!")
 
 if __name__ == "__main__":
