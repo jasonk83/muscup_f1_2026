@@ -233,7 +233,7 @@ with tab_commissioner:
         # Streamlit Data Editor implementation
         edited_df = st.data_editor(
             df_editor, 
-            column_config={"Player Owner": st.column_config.SelectboxColumn(options=["Unassigned", "Player_1", "Player_2", "Player_3", "Player_4"])},
+            column_config={"Player Owner": st.column_config.SelectboxColumn(options=["Unassigned", "Carly", "Chief", "Kennedy", "Stuebe"])},
             disabled=["Seat Key", "Current Driver"],
             use_container_width=True
         )
