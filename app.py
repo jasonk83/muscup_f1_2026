@@ -10,7 +10,6 @@ st.set_page_config(page_title="F1 2026 Fantasy Tracker", layout="wide", page_ico
 st.title("🏎️ F1 2026 Championship Fantasy Tracker")
 
 # --- CONFIG & SECRETS ---
-# Ensure these variables are added to your .streamlit/secrets.toml file or Streamlit Cloud Dashboard
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 REPO_OWNER = st.secrets.get("REPO_OWNER", "")
 REPO_NAME = st.secrets.get("REPO_NAME", "")
@@ -36,7 +35,6 @@ def save_json_to_github(file_path, data, commit_message="Update configurations")
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
     
-    # Get current file SHA to perform updates
     get_res = requests.get(url, headers=headers)
     sha = get_res.json().get("sha") if get_res.status_code == 200 else None
     
@@ -53,10 +51,6 @@ def save_json_to_github(file_path, data, commit_message="Update configurations")
 
 # --- CORE CALCULATIONS ENGINE ---
 def compute_points(position):
-    """
-    Implements 22 points for 1st down to 1 point for 22nd.
-    DNF/DNS inputs are evaluated as 0 points.
-    """
     try:
         pos = int(position)
         if 1 <= pos <= 22:
@@ -69,7 +63,6 @@ def process_standings(config, results_df):
     if results_df.empty or "history" not in config:
         return pd.DataFrame(), pd.DataFrame()
         
-    # Build historical mapping lookup table
     history_records = []
     for h in config["history"]:
         history_records.append({
@@ -80,31 +73,24 @@ def process_standings(config, results_df):
         })
     hist_df = pd.DataFrame(history_records)
     
-    # Apply calculation rules to results
     results_df["points"] = results_df["position"].apply(compute_points)
-    
-    # Merge results with seat ownership history matching on driver and round parameters
     merged = pd.merge(results_df, hist_df, on=["round", "driver"], how="inner")
     
-    # Group points totals
     player_standings = merged.groupby("player_owner")["points"].sum().reset_index()
     player_standings = player_standings.sort_values(by="points", ascending=False).reset_index(drop=True)
     player_standings.index += 1
     player_standings.index.name = "Rank"
     
-    # Generate timeline dataframe for line charts
     timeline = merged.groupby(["round", "player_owner"])["points"].sum().groupby(level=1).cumsum().reset_index()
     
     return player_standings, timeline
 
 # --- DATA ACQUISITION LAYER ---
 config_data = load_file_from_github(CONFIG_PATH, is_json=True)
-# Mock local fallback if GitHub connection variables aren't initialized yet
 if not config_data:
     st.info("Loading template configurations. Please connect your GitHub account via Streamlit Secrets.")
     config_data = {"seats": {}, "history": []}
 
-# Generate mock local placeholder for empty results context
 try:
     results_data = pd.read_csv(f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/{RESULTS_PATH}")
 except Exception:
@@ -149,28 +135,23 @@ with tab_simulation:
         if remaining_races > 0:
             run_sim = st.button("Execute 1,000 Iteration Simulation")
             if run_sim:
-                # Extract baseline score positions
                 standings, _ = process_standings(config_data, results_data)
                 current_scores = dict(zip(standings["player_owner"], standings["points"]))
                 
-                # Setup players list 
                 players = list(set([seat["player_owner"] for seat in config_data["seats"].values() if seat["player_owner"] != "Unassigned"]))
                 if not players:
                     st.warning("Assign drivers to players inside the Admin Space to calculate simulations.")
                 else:
                     sim_scores = {p: [] for p in players}
                     
-                    # Precalculate base driver positions from current averages 
                     avg_finishes = results_data.groupby("driver")["position"].apply(
                         lambda x: pd.to_numeric(x, errors='coerce').mean()
                     ).fillna(11).to_dict()
                     
-                    # 1,000 Iteration Simulation Loop
                     for _ in range(1000):
                         temp_scores = {p: current_scores.get(p, 0) for p in players}
                         
                         for r in range(int(current_round) + 1, 25):
-                            # Sample finish orders using performance weights
                             drivers = list(avg_finishes.keys())
                             scores_pool = [1 / (avg_finishes[d] + np.random.normal(0, 3.5)) for d in drivers]
                             prob_dist = np.exp(scores_pool) / np.sum(np.exp(scores_pool))
@@ -179,7 +160,6 @@ with tab_simulation:
                             
                             for pos_idx, drv in enumerate(simmed_finish):
                                 fin_pos = pos_idx + 1
-                                # Match driver back to owner 
                                 for s_id, s_info in config_data["seats"].items():
                                     if s_info["current_driver"] == drv:
                                         owner = s_info["player_owner"]
@@ -189,7 +169,6 @@ with tab_simulation:
                         for p in players:
                             sim_scores[p].append(temp_scores[p])
                     
-                    # Process and present final rank distributions
                     rank_counts = {p: [0, 0, 0, 0] for p in players}
                     for idx in range(1000):
                         round_results = {p: sim_scores[p][idx] for p in players}
@@ -220,7 +199,6 @@ with tab_commissioner:
         st.subheader("Manage Active Rosters")
         st.write("Assign players to their 5 specific team seats. Saving configuration updates writes directly back to GitHub.")
         
-        # Build editing frame
         grid_rows = []
         for seat_key, data in config_data["seats"].items():
             grid_rows.append({
@@ -230,7 +208,6 @@ with tab_commissioner:
             })
         df_editor = pd.DataFrame(grid_rows)
         
-        # Streamlit Data Editor implementation
         edited_df = st.data_editor(
             df_editor, 
             column_config={"Player Owner": st.column_config.SelectboxColumn(options=["Unassigned", "Carly", "Chief", "Kennedy", "Stuebe"])},
@@ -239,7 +216,6 @@ with tab_commissioner:
         )
         
         if st.button("Commit and Push Alignment to GitHub"):
-            # Update values inside operational json configurations
             for _, row in edited_df.iterrows():
                 config_data["seats"][row["Seat Key"]]["player_owner"] = row["Player Owner"]
                 
