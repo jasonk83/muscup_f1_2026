@@ -1,360 +1,206 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import requests
 import json
-import base64
-from io import StringIO
 import plotly.express as px
 
-# --- STREAMLIT CONFIGURATION ---
-st.set_page_config(page_title="F1 2026 Fantasy Tracker", layout="wide", page_icon="🏎️")
-st.title("🏎️ F1 2026 Championship Fantasy Tracker")
+# --- SETUP & CONSTANTS ---
+st.set_page_config(page_title="MusCup F1 2026 Dashboard", layout="wide")
 
-# --- CONFIG & SECRETS ---
-GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
-REPO_OWNER = st.secrets.get("REPO_OWNER", "")
-REPO_NAME = st.secrets.get("REPO_NAME", "")
-CONFIG_PATH = "seats_config.json"
-RESULTS_PATH = "race_results.csv"
-
-# --- LEAGUE COLOR & EMOJI MAPPINGS ---
-PLAYER_FORMAT = {
-    "Carly": {"emoji": "🔵", "color": "#636EFA"},   # Plotly Blue
-    "Chief": {"emoji": "🔴", "color": "#EF553B"},   # Plotly Red
-    "Kennedy": {"emoji": "🟢", "color": "#00CC96"}, # Plotly Green
-    "Stuebe": {"emoji": "🟣", "color": "#AB63FA"},  # Plotly Purple
-    "Unassigned": {"emoji": "⚪", "color": "#CCCCCC"}
+TEAM_COLORS = {
+    "Mercedes": "#00D2BE",
+    "McLaren": "#FF8000",
+    "Ferrari": "#DC0000",
+    "Red Bull Racing": "#3671C6",
+    "Williams": "#005AFF",
+    "Alpine": "#FF87BC",
+    "Haas F1 Team": "#E6002B",
+    "Kick Sauber": "#00E701",
+    "Sauber": "#00E701",
+    "Aston Martin": "#229971",
+    "RB": "#6692FF",
+    "Racing Bulls": "#6692FF",
+    "Cadillac": "#FFB81C" 
 }
 
-# --- GITHUB FILE HELPER FUNCTIONS ---
-def load_file_from_github(file_path, is_json=True):
-    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"} if GITHUB_TOKEN else {}
-    response = requests.get(url, headers=headers)
-    
-    if response.status_code == 200:
-        content = base64.b64decode(response.json()["content"]).decode("utf-8")
-        if is_json:
-            return json.loads(content)
-        else:
-            return pd.read_csv(StringIO(content))
-    else:
-        return {} if is_json else pd.DataFrame(columns=["race_id", "round", "driver", "team", "position"])
+PLAYER_FORMAT = {
+    "Chief": {"emoji": "🔴"},
+    "Carly": {"emoji": "🔵"},
+    "Stuebe": {"emoji": "🟣"},
+    "Kennedy": {"emoji": "🟢"},
+    "Unassigned": {"emoji": "⚪"}
+}
 
-def save_json_to_github(file_path, data, commit_message="Update configurations"):
-    if not GITHUB_TOKEN:
-        st.warning("No GitHub Token found. Changes will only persist in temporary local cache.")
-        return False
-    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
-    
-    get_res = requests.get(url, headers=headers)
-    sha = get_res.json().get("sha") if get_res.status_code == 200 else None
-    
-    serialized_data = json.dumps(data, indent=2)
-    payload = {
-        "message": commit_message,
-        "content": base64.b64encode(serialized_data.encode("utf-8")).decode("utf-8")
-    }
-    if sha:
-        payload["sha"] = sha
-        
-    put_res = requests.put(url, json=payload, headers=headers)
-    return put_res.status_code in [200, 201]
-
-# --- CORE CALCULATIONS ENGINE ---
-def compute_points(position):
+# --- DATA LOADING ---
+@st.cache_data(ttl=60)
+def load_data():
     try:
-        pos = int(position)
-        if 1 <= pos <= 22:
-            return 23 - pos
-    except (ValueError, TypeError):
+        with open("seats_config.json", "r") as f:
+            config_data = json.load(f)
+        results_data = pd.read_csv("race_results.csv")
+        return config_data, results_data
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return None, pd.DataFrame()
+
+# --- LOGIC & MATH ---
+def compute_points(position):
+    if position == "DNF" or pd.isna(position):
         return 0
-    return 0
+    try:
+        pos = int(float(position))
+        return max(0, 23 - pos)
+    except:
+        return 0
 
-def process_standings(config, results_df):
-    if results_df.empty or "history" not in config:
-        return pd.DataFrame(), pd.DataFrame()
-        
-    history_records = []
-    for h in config["history"]:
-        history_records.append({
-            "round": h["round"],
-            "seat_id": h["seat_id"],
-            "driver": h["driver"],
-            "player_owner": config["seats"][h["seat_id"]]["player_owner"]
-        })
-    hist_df = pd.DataFrame(history_records)
+def process_standings(config, results):
+    # Map drivers to their owners based on the config
+    driver_owner = {seat_data["current_driver"]: seat_data["player_owner"] for seat_id, seat_data in config["seats"].items()}
     
-    results_df["points"] = results_df["position"].apply(compute_points)
-    merged = pd.merge(results_df, hist_df, on=["round", "driver"], how="inner")
+    results["points"] = results["position"].apply(compute_points)
+    results["owner"] = results["driver"].map(driver_owner).fillna("Unassigned")
     
-    # Calculate Leaderboard
-    player_standings = merged.groupby("player_owner")["points"].sum().reset_index()
-    player_standings = player_standings.sort_values(by="points", ascending=False).reset_index(drop=True)
-    player_standings.index += 1
-    player_standings.index.name = "Rank"
+    # Player Standings
+    standings = results.groupby("owner")["points"].sum().reset_index()
+    standings.rename(columns={"owner": "player_owner"}, inplace=True)
+    standings = standings.sort_values(by="points", ascending=False).reset_index(drop=True)
+    standings.index += 1
     
-    # Generate Timeline
-    timeline = merged.groupby(["round", "player_owner"])["points"].sum().groupby(level=1).cumsum().reset_index()
+    return standings, results
+
+# --- UI & DASHBOARD ---
+st.title("🏎️ MusCup 2026 F1 Fantasy Tracker")
+
+config_data, results_data = load_data()
+
+if config_data and not results_data.empty:
+    tab_leaderboard, tab_monte_carlo = st.tabs(["📊 Leaderboard", "🎲 Monte Carlo Projections"])
     
-    return player_standings, timeline
-
-# --- DATA ACQUISITION LAYER ---
-config_data = load_file_from_github(CONFIG_PATH, is_json=True)
-results_data = load_file_from_github(RESULTS_PATH, is_json=False)
-
-if not config_data:
-    st.info("Loading template configurations. Please connect your GitHub account via Streamlit Secrets.")
-    config_data = {"seats": {}, "history": []}
-
-# --- RENDER APPLICATION TABS ---
-tab_leaderboard, tab_simulation, tab_commissioner = st.tabs([
-    "🏆 Standings & Analytics", 
-    "🎲 Monte Carlo Predictor", 
-    "🛠️ Admin & Draft Space"
-])
-
-# --- TAB 1: LEADERBOARD & PERFORMANCE CHARTS ---
-with tab_leaderboard:
-    st.header("Season Standings")
-    if not results_data.empty:
-        standings, timeline_df = process_standings(config_data, results_data)
+    # --- TAB 1: LEADERBOARD ---
+    with tab_leaderboard:
+        st.header("Season Standings")
+        standings, processed_results = process_standings(config_data, results_data.copy())
         
-        if not standings.empty:
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                st.subheader("Current Leaderboard")
-                # Format dataframe with emojis for UI
-                display_df = standings.copy()
-                display_df["Player"] = display_df["player_owner"].apply(
-                    lambda p: f"{PLAYER_FORMAT.get(p, PLAYER_FORMAT['Unassigned'])['emoji']} {p}"
-                )
-                display_df = display_df[["Player", "points"]].rename(columns={"points": "Total Points"})
-                st.dataframe(display_df, use_container_width=True)
-                
-                # --- NEW DRIVER STANDINGS TABLE ---
-                st.subheader("Driver Breakdown")
-                st.dataframe(results_data)
-                # Calculate raw points directly from results_data to isolate the math
-                results_data["points"] = results_data["position"].apply(compute_points)
-                driver_totals = results_data.groupby(["driver", "team"])["points"].sum().reset_index()
-                driver_totals = driver_totals.sort_values(by="points", ascending=False).reset_index(drop=True)
-                driver_totals.index += 1
-                driver_totals.rename(columns={"driver": "Driver", "team": "Team", "points": "Total Points"}, inplace=True)
-                st.dataframe(driver_totals, use_container_width=True)
-                
-            with col2:
-                st.subheader("Points Progression Tracker")
-                
-                # Apply emoji format and map exact hex colors for Plotly
-                timeline_df["Player"] = timeline_df["player_owner"].apply(
-                    lambda p: f"{PLAYER_FORMAT.get(p, PLAYER_FORMAT['Unassigned'])['emoji']} {p}"
-                )
-                
-                color_mapping = {
-                    f"{v['emoji']} {k}": v["color"] for k, v in PLAYER_FORMAT.items()
-                }
-                
-                # Create a custom label column: only show the Player name on the most recent completed round
-                max_round = timeline_df["round"].max()
-                timeline_df["line_label"] = timeline_df.apply(
-                    lambda row: row["Player"] if row["round"] == max_round else None, 
-                    axis=1
-                )
-                
-                # Build the interactive Plotly Express chart
-                fig = px.line(
-                    timeline_df, 
-                    x="round", 
-                    y="points", 
-                    color="Player", 
-                    markers=True, 
-                    text="line_label",
-                    color_discrete_map=color_mapping,
-                    labels={"round": "Race Round", "points": "Total Points"}
-                )
-                
-                # Position the text label cleanly to the right of the final dot 
-                fig.update_traces(textposition="middle right")
-                
-                # Ensure X-axis only shows whole numbers and add right-side margin for labels
-                fig.update_layout(
-                    xaxis=dict(tickmode='linear', dtick=1),
-                    margin=dict(r=100) 
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Awaiting initial draft mapping configuration profiles.")
-    else:
-        st.info("No race results have been recorded for the season yet.")
-
-# --- THIS IS THE CORRECT INDENTATION LEVEL FOR THE NEW CHART ---
-        # Notice that these lines align perfectly with "col1, col2 = st.columns([1, 2])"
-        # They should be indented with exactly 8 spaces (or 2 tabs).
+        col1, col2 = st.columns([1, 1.5])
         
-        st.divider()
-        st.subheader("Top 5 Drivers: Points Progression")
-        
-        # F1 Team Color Mapping
-        TEAM_COLORS = {
-            "Mercedes": "#00D2BE",
-            "McLaren": "#FF8000",
-            "Ferrari": "#DC0000",
-            "Red Bull Racing": "#3671C6",
-            "Williams": "#005AFF",
-            "Alpine": "#FF87BC",
-            "Haas F1 Team": "#E6002B",
-            "Kick Sauber": "#00E701",
-            "Sauber": "#00E701",
-            "Aston Martin": "#229971",
-            "RB": "#6692FF",
-            "Racing Bulls": "#6692FF",
-            "Cadillac": "#FFB81C" 
-        }
-
-        if "points" not in results_data.columns:
-            results_data["points"] = results_data["position"].apply(compute_points)
+        with col1:
+            st.subheader("Current Leaderboard")
+            display_df = standings.copy()
+            display_df["Player"] = display_df["player_owner"].apply(
+                lambda p: f"{PLAYER_FORMAT.get(p, PLAYER_FORMAT['Unassigned'])['emoji']} {p}"
+            )
+            display_df = display_df[["Player", "points"]].rename(columns={"points": "Total Points"})
+            st.dataframe(display_df, use_container_width=True)
             
-        top_drivers_series = results_data.groupby("driver")["points"].sum().nlargest(5)
-        top_5_names = top_drivers_series.index.tolist()
-        
-        top_5_df = results_data[results_data["driver"].isin(top_5_names)].copy()
-        top_5_df = top_5_df.sort_values(by=["driver", "round"])
-        top_5_df["Cumulative Points"] = top_5_df.groupby("driver")["points"].cumsum()
-        
-        driver_to_team = top_5_df.drop_duplicates(subset=["driver"], keep="last").set_index("driver")["team"].to_dict()
-        color_map = {driver: TEAM_COLORS.get(team, "#A8A8A8") for driver, team in driver_to_team.items()}
-        
-        fig_drivers = px.line(
-            top_5_df,
-            x="round",
-            y="Cumulative Points",
-            color="driver",
-            markers=True,
-            color_discrete_map=color_map,
-            labels={"round": "Race Round", "Cumulative Points": "Total Points", "driver": "Driver"}
-        )
-        
-        fig_drivers.update_layout(
-            hovermode="x unified",
-            xaxis=dict(tickmode='linear', tick0=1, dtick=1)
-        )
-        
-        st.plotly_chart(fig_drivers, use_container_width=True)
+            # --- DRIVER BREAKDOWN TABLE ---
+            st.subheader("Driver Breakdown")
+            driver_totals = processed_results.groupby(["driver", "team"])["points"].sum().reset_index()
+            driver_totals = driver_totals.sort_values(by="points", ascending=False).reset_index(drop=True)
+            driver_totals.index += 1
+            driver_totals.rename(columns={"driver": "Driver", "team": "Team", "points": "Total Points"}, inplace=True)
+            st.dataframe(driver_totals, use_container_width=True)
+            
+        with col2:
+            st.subheader("Top 5 Drivers: Points Progression")
+            # 1. Identify top 5 drivers
+            top_drivers_series = processed_results.groupby("driver")["points"].sum().nlargest(5)
+            top_5_names = top_drivers_series.index.tolist()
+            
+            # 2. Filter and calculate cumulative points
+            top_5_df = processed_results[processed_results["driver"].isin(top_5_names)].copy()
+            top_5_df = top_5_df.sort_values(by=["driver", "round"])
+            top_5_df["Cumulative Points"] = top_5_df.groupby("driver")["points"].cumsum()
+            
+            # 3. Map colors based on team
+            driver_to_team = top_5_df.drop_duplicates(subset=["driver"], keep="last").set_index("driver")["team"].to_dict()
+            color_map = {driver: TEAM_COLORS.get(team, "#A8A8A8") for driver, team in driver_to_team.items()}
+            
+            # 4. Generate line chart
+            fig_drivers = px.line(
+                top_5_df,
+                x="round",
+                y="Cumulative Points",
+                color="driver",
+                markers=True,
+                color_discrete_map=color_map,
+                labels={"round": "Race Round", "Cumulative Points": "Total Points", "driver": "Driver"}
+            )
+            fig_drivers.update_layout(hovermode="x unified", xaxis=dict(tickmode='linear', tick0=1, dtick=1))
+            st.plotly_chart(fig_drivers, use_container_width=True)
 
-# --- TAB 2: MONTE CARLO PREDICTOR MODEL ---
-with tab_simulation:
-    st.header("Championship Projection Engine")
-    st.write("Simulates remaining races using baseline driver ratings to estimate final outcome probabilities.")
-    
-    if not results_data.empty and config_data.get("seats"):
-        current_round = results_data["round"].max()
-        remaining_races = max(0, 24 - current_round)
+    # --- TAB 2: MONTE CARLO SIMULATION ---
+    with tab_monte_carlo:
+        st.header("Rest-of-Season Projections")
+        st.write("Simulating the remaining races based on current season performance...")
+        
+        # Determine remaining races (24 total in the season)
+        completed_rounds = processed_results["round"].nunique()
+        remaining_races = max(0, 24 - completed_rounds)
         
         if remaining_races > 0:
-            run_sim = st.button("Execute 1,000 Iteration Simulation")
-            if run_sim:
-                standings, _ = process_standings(config_data, results_data)
-                current_scores = dict(zip(standings["player_owner"], standings["points"]))
+            # 1. Calculate driver weights based on average points scored per race
+            driver_stats = processed_results.groupby("driver")["points"].agg(['mean']).reset_index()
+            drivers = driver_stats["driver"].tolist()
+            weights = driver_stats["mean"].tolist()
+            
+            # 2. Add a tiny baseline weight to avoid 0-probability crashes
+            weights = np.array(weights) + 0.01 
+            
+            # 3. SAFELY Normalize probabilities to sum exactly to 1.0
+            prob_dist = weights / weights.sum()
+            prob_dist = prob_dist / prob_dist.sum() # Double-check normalization for float precision
+            
+            num_simulations = 1000
+            simulation_results = []
+            driver_owner_map = {seat_data["current_driver"]: seat_data["player_owner"] for seat_id, seat_data in config_data["seats"].items()}
+            
+            # 4. Run the Simulation Loop
+            progress_bar = st.progress(0)
+            for i in range(num_simulations):
+                sim_scores = {p: 0 for p in ["Chief", "Carly", "Stuebe", "Kennedy", "Unassigned"]}
                 
-                players = list(set([seat["player_owner"] for seat in config_data["seats"].values() if seat["player_owner"] != "Unassigned"]))
-                if not players:
-                    st.warning("Assign drivers to players inside the Admin Space to calculate simulations.")
-                else:
-                    sim_scores = {p: [] for p in players}
+                for _ in range(remaining_races):
+                    # The ValueError is fixed here thanks to strict prob_dist normalization
+                    simmed_finish = np.random.choice(drivers, size=len(drivers), replace=False, p=prob_dist)
                     
-                    avg_finishes = results_data.groupby("driver")["position"].apply(
-                        lambda x: pd.to_numeric(x, errors='coerce').mean()
-                    ).fillna(11).to_dict()
-                    
-                    for _ in range(1000):
-                        temp_scores = {p: current_scores.get(p, 0) for p in players}
+                    # Award points (1st = 22, 2nd = 21, etc.)
+                    for pos, driver in enumerate(simmed_finish):
+                        points_awarded = max(0, 22 - pos)
+                        owner = driver_owner_map.get(driver, "Unassigned")
+                        sim_scores[owner] += points_awarded
                         
-                        for r in range(int(current_round) + 1, 25):
-                            drivers = list(avg_finishes.keys())
-                            scores_pool = [1 / (avg_finishes[d] + np.random.normal(0, 3.5)) for d in drivers]
-                            prob_dist = np.exp(scores_pool) / np.sum(np.exp(scores_pool))
-                            
-                            simmed_finish = np.random.choice(drivers, size=len(drivers), replace=False, p=prob_dist)
-                            
-                            for pos_idx, drv in enumerate(simmed_finish):
-                                fin_pos = pos_idx + 1
-                                for s_id, s_info in config_data["seats"].items():
-                                    if s_info["current_driver"] == drv:
-                                        owner = s_info["player_owner"]
-                                        if owner in temp_scores:
-                                            temp_scores[owner] += compute_points(fin_pos)
-                                            
-                        for p in players:
-                            sim_scores[p].append(temp_scores[p])
-                    
-                    rank_counts = {p: [0, 0, 0, 0] for p in players}
-                    for idx in range(1000):
-                        round_results = {p: sim_scores[p][idx] for p in players}
-                        sorted_players = sorted(round_results, key=round_results.get, reverse=True)
-                        for rank_pos, p_name in enumerate(sorted_players):
-                            if rank_pos < 4:
-                                rank_counts[p_name][rank_pos] += 1
-                                
-                    summary_data = []
-                    for p in players:
-                        display_name = f"{PLAYER_FORMAT.get(p, PLAYER_FORMAT['Unassigned'])['emoji']} {p}"
-                        summary_data.append({
-                            "Player": display_name,
-                            "Win Probability": f"{rank_counts[p][0] / 10}%",
-                            "Podium Probability": f"{sum(rank_counts[p][:3]) / 10}%",
-                            "Wooden Spoon Probability": f"{rank_counts[p][3] / 10}%"
-                        })
-                    st.table(pd.DataFrame(summary_data))
+                simulation_results.append(sim_scores)
+                if i % 100 == 0:
+                    progress_bar.progress((i + 1) / num_simulations)
+            progress_bar.empty()
+            
+            # 5. Process and Display Simulation Output
+            sim_df = pd.DataFrame(simulation_results)
+            
+            # Add current points to simulated points
+            current_totals = standings.set_index("player_owner")["points"].to_dict()
+            for player in sim_df.columns:
+                sim_df[player] = sim_df[player] + current_totals.get(player, 0)
+                
+            win_counts = sim_df.idxmax(axis=1).value_counts(normalize=True) * 100
+            
+            col_sim1, col_sim2 = st.columns(2)
+            with col_sim1:
+                st.subheader("Championship Probability")
+                win_df = win_counts.reset_index()
+                win_df.columns = ["Player", "Win Probability (%)"]
+                win_df["Player"] = win_df["Player"].apply(lambda p: f"{PLAYER_FORMAT.get(p, PLAYER_FORMAT['Unassigned'])['emoji']} {p}")
+                
+                fig_pie = px.pie(win_df, names="Player", values="Win Probability (%)", hole=0.4)
+                st.plotly_chart(fig_pie, use_container_width=True)
+                
+            with col_sim2:
+                st.subheader("Projected Final Points (Average)")
+                avg_final = sim_df.mean().sort_values(ascending=False).reset_index()
+                avg_final.columns = ["Player", "Projected Points"]
+                avg_final["Player"] = avg_final["Player"].apply(lambda p: f"{PLAYER_FORMAT.get(p, PLAYER_FORMAT['Unassigned'])['emoji']} {p}")
+                st.dataframe(avg_final.style.format({"Projected Points": "{:.0f}"}), use_container_width=True)
         else:
-            st.success("The season is complete! Check out the final leaderboard tab.")
-    else:
-        st.info("Awaiting initial draft configurations and verified results data.")
-
-# --- TAB 3: COMMISSIONER SPACE & LINEUP MANAGERS ---
-with tab_commissioner:
-    st.header("League Configuration Desk")
-    
-    if config_data.get("seats"):
-        st.subheader("Manage Active Rosters")
-        
-        # Insert Password Protection
-        admin_password = st.text_input("Enter Commissioner Password", type="password")
-        
-        if admin_password == "Kennedy":
-            st.write("Assign players to their 5 specific team seats. Saving configuration updates writes directly back to GitHub.")
-            
-            grid_rows = []
-            for seat_key, data in config_data["seats"].items():
-                grid_rows.append({
-                    "Seat Key": seat_key,
-                    "Current Driver": data["current_driver"],
-                    "Player Owner": data["player_owner"]
-                })
-            df_editor = pd.DataFrame(grid_rows)
-            
-            # We intentionally do not use emojis here so the raw names stay clean in the JSON mapping
-            edited_df = st.data_editor(
-                df_editor, 
-                column_config={"Player Owner": st.column_config.SelectboxColumn(options=["Unassigned", "Carly", "Chief", "Kennedy", "Stuebe"])},
-                disabled=["Seat Key", "Current Driver"],
-                use_container_width=True
-            )
-            
-            if st.button("Commit and Push Alignment to GitHub"):
-                for _, row in edited_df.iterrows():
-                    config_data["seats"][row["Seat Key"]]["player_owner"] = row["Player Owner"]
-                    
-                success = save_json_to_github(CONFIG_PATH, config_data, "Update player draft seat mappings")
-                if success:
-                    st.success("Draft configurations successfully committed to your GitHub Repository!")
-                    st.rerun()
-                else:
-                    st.error("Failed to commit updates to GitHub. Verify your access tokens.")
-                    
-        elif admin_password:
-            # Show an error if they try to guess it and get it wrong
-            st.error("Incorrect password. Access denied.")
+            st.success("The season is complete! No remaining races to simulate.")
+else:
+    st.info("Awaiting race data. Please ensure the GitHub Action has run successfully.")
