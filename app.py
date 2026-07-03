@@ -23,6 +23,23 @@ TEAM_COLORS = {
     "Cadillac": "#FFB81C" 
 }
 
+# Used to differentiate Seat 2 drivers on the line charts
+TEAM_SECONDARY_COLORS = {
+    "Mercedes": "#000000",       # Black
+    "McLaren": "#000000",        # Black
+    "Ferrari": "#FFC000",        # Yellow
+    "Red Bull Racing": "#FCD700",# Yellow
+    "Williams": "#00A0DE",       # Light Blue
+    "Alpine": "#0050BA",         # Dark Blue
+    "Haas F1 Team": "#FFFFFF",   # White
+    "Kick Sauber": "#000000",    # Black
+    "Sauber": "#000000",         # Black
+    "Aston Martin": "#D0FE1D",   # Lime
+    "RB": "#FFFFFF",             # White
+    "Racing Bulls": "#FFFFFF",   # White
+    "Cadillac": "#000000"        # Black
+}
+
 PLAYER_FORMAT = {
     "Chief": {"emoji": "🔴", "color": "#EF4444"},   # Red
     "Carly": {"emoji": "🔵", "color": "#3B82F6"},   # Blue
@@ -94,12 +111,9 @@ if config_data and not results_data.empty:
         # 2. Player Progression Line Chart
         st.subheader("Player Points Progression")
         
-        # Group points by player and round, then cumulative sum
         player_round_pts = processed_results.groupby(["owner", "round"])["points"].sum().reset_index()
-        # Pivot to ensure no missing rounds for any player, then cumulative sum
         player_pivot = player_round_pts.pivot(index="round", columns="owner", values="points").fillna(0)
         player_cum = player_pivot.cumsum().reset_index()
-        # Melt back into format required for Plotly
         player_melt = player_cum.melt(id_vars="round", var_name="Player", value_name="Cumulative Points")
         
         player_color_map = {p: PLAYER_FORMAT.get(p, PLAYER_FORMAT["Unassigned"])["color"] for p in player_melt["Player"].unique()}
@@ -143,6 +157,27 @@ if config_data and not results_data.empty:
             color_discrete_map=color_map,
             labels={"round": "Race Round", "Cumulative Points": "Total Points", "driver": "Driver"}
         )
+        
+        # Inject Secondary Colors for Seat 2 Drivers to differentiate teammate markers
+        for trace in fig_drivers.data:
+            driver_name = trace.name
+            seat_num = '1'
+            # Look up which seat this driver occupies
+            for seat_key, seat_data in config_data["seats"].items():
+                if seat_data["current_driver"] == driver_name:
+                    seat_num = seat_key.split("_")[-1]
+                    break
+            
+            if seat_num == '2':
+                driver_team = driver_to_team.get(driver_name)
+                sec_color = TEAM_SECONDARY_COLORS.get(driver_team, "#FFFFFF")
+                # Apply secondary color inside the marker, with primary color as the border
+                trace.update(
+                    marker=dict(color=sec_color, size=9, line=dict(width=2, color=trace.line.color))
+                )
+            else:
+                trace.update(marker=dict(size=8))
+                
         fig_drivers.update_layout(
             hovermode="x unified",
             xaxis=dict(tickmode='linear', tick0=1, dtick=1),
@@ -205,6 +240,9 @@ if config_data and not results_data.empty:
                 
             win_counts = sim_df.idxmax(axis=1).value_counts(normalize=True) * 100
             
+            # Explicitly map the emoji-formatted names to their hex colors for the pie chart
+            pie_color_map = {f"{PLAYER_FORMAT.get(p, PLAYER_FORMAT['Unassigned'])['emoji']} {p}": PLAYER_FORMAT.get(p, PLAYER_FORMAT['Unassigned'])["color"] for p in ["Chief", "Carly", "Stuebe", "Kennedy", "Unassigned"]}
+            
             col_sim1, col_sim2 = st.columns(2)
             with col_sim1:
                 st.subheader("Championship Probability")
@@ -212,7 +250,14 @@ if config_data and not results_data.empty:
                 win_df.columns = ["Player", "Win Probability (%)"]
                 win_df["Player"] = win_df["Player"].apply(lambda p: f"{PLAYER_FORMAT.get(p, PLAYER_FORMAT['Unassigned'])['emoji']} {p}")
                 
-                fig_pie = px.pie(win_df, names="Player", values="Win Probability (%)", hole=0.4)
+                fig_pie = px.pie(
+                    win_df, 
+                    names="Player", 
+                    values="Win Probability (%)", 
+                    hole=0.4,
+                    color="Player",
+                    color_discrete_map=pie_color_map
+                )
                 st.plotly_chart(fig_pie, use_container_width=True)
                 
             with col_sim2:
@@ -234,7 +279,6 @@ if config_data and not results_data.empty:
         if pwd == "Kennedy":
             st.success("Access Granted: Administrator Mode Active")
             
-            # Format the data for the data editor
             seat_records = []
             for seat_id, data in config_data["seats"].items():
                 seat_records.append({"Seat": seat_id, "Current Driver": data["current_driver"], "Player Owner": data["player_owner"]})
@@ -258,11 +302,9 @@ if config_data and not results_data.empty:
             )
             
             if st.button("Save Draft Configuration", type="primary"):
-                # Write the changes back to the JSON object
                 for index, row in edited_df.iterrows():
                     config_data["seats"][row["Seat"]]["player_owner"] = row["Player Owner"]
                 
-                # Save locally
                 with open("seats_config.json", "w") as f:
                     json.dump(config_data, f, indent=2)
                 
