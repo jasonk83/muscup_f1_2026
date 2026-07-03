@@ -124,6 +124,11 @@ def ingest_latest_race():
         team_drivers = {}
         
         for r in results_list:
+            # --- DEBUGGER: Print the raw OpenF1 payload for Max Verstappen ---
+            if r.get("driver_number") == 1:
+                print(f"RAW OPENF1 DATA: {r}")
+                
+            driver_num = r.get("driver_number")
             driver_num = r.get("driver_number")
             driver_info = drivers_map.get(driver_num, {})
             
