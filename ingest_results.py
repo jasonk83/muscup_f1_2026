@@ -132,12 +132,16 @@ def ingest_latest_race():
             team_name = driver_info.get("team_name", "Unknown Team")
             team_key = get_team_key(team_name)
             
-            # Strict DNF Enforcement
-            status = str(r.get("status", ""))
-            if status.lower() in ["finished", "classified"] or status.startswith("+"):
-                position = r.get("position", "DNF")
-            else:
+            # --- STRICT DNF ENFORCEMENT UPDATE ---
+            # OpenF1 uses a boolean (True/False) for DNFs, not text strings
+            is_dnf = r.get("dnf", False)
+            pos_val = r.get("position")
+            
+            if is_dnf or pos_val is None:
                 position = "DNF"
+            else:
+                # Ensure clean integers in the CSV to prevent Float conversion errors
+                position = int(float(pos_val))
                 
             team_drivers.setdefault(team_key, []).append({
                 "driver_name": driver_name,
