@@ -33,7 +33,8 @@ def get_team_key(api_team_name):
     if "haas" in t: return "haas"
     if "aston" in t: return "aston_martin"
     if "audi" in t or "sauber" in t or "alfaromeo" in t: return "audi"
-    if "rb" == t or "alphatauri" in t or "racingbulls" in t: return "racing_bulls"
+    # --- FIX: Changed '==' to 'in' so 'rbf1team' is successfully caught ---
+    if "rb" in t or "alphatauri" in t or "racingbulls" in t: return "racing_bulls"
     if "cadillac" in t or "andretti" in t: return "cadillac"
     return t
 
