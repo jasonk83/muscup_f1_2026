@@ -134,6 +134,16 @@ with tab_leaderboard:
                 display_df = display_df[["Player", "points"]].rename(columns={"points": "Total Points"})
                 st.dataframe(display_df, use_container_width=True)
                 
+                # --- NEW DRIVER STANDINGS TABLE ---
+                st.subheader("Driver Breakdown")
+                # Calculate raw points directly from results_data to isolate the math
+                results_data["points"] = results_data["position"].apply(compute_points)
+                driver_totals = results_data.groupby(["driver", "team"])["points"].sum().reset_index()
+                driver_totals = driver_totals.sort_values(by="points", ascending=False).reset_index(drop=True)
+                driver_totals.index += 1
+                driver_totals.rename(columns={"driver": "Driver", "team": "Team", "points": "Total Points"}, inplace=True)
+                st.dataframe(driver_totals, use_container_width=True)
+                
             with col2:
                 st.subheader("Points Progression Tracker")
                 
