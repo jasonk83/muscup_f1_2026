@@ -32,8 +32,8 @@ def get_team_key(api_team_name):
     if "alpine" in t: return "alpine"
     if "haas" in t: return "haas"
     if "aston" in t: return "aston_martin"
-    if "audi" in t or "sauber" in t: return "audi"
-    if "racingbulls" in t or "rb" == t: return "racing_bulls"
+    if "audi" in t or "sauber" in t or "alfaromeo" in t: return "audi"
+    if "rb" == t or "alphatauri" in t or "racingbulls" in t: return "racing_bulls"
     if "cadillac" in t or "andretti" in t: return "cadillac"
     return t
 
@@ -43,17 +43,9 @@ def fetch_file_from_github(path, is_json=True):
     if res.status_code == 200:
         content = base64.b64decode(res.json()["content"]).decode("utf-8")
         if is_json:
-            try:
-                return json.loads(content), res.json()["sha"]
-            except:
-                sys.exit(1)
+            return json.loads(content), res.json()["sha"]
         else:
-            try:
-                if not content.strip():
-                    return pd.DataFrame(), res.json()["sha"]
-                return pd.read_csv(StringIO(content)), res.json()["sha"]
-            except:
-                sys.exit(1)
+            return pd.read_csv(StringIO(content)), res.json()["sha"]
     return (None, None) if is_json else (pd.DataFrame(), None)
 
 def push_file_to_github(path, content_str, sha, message):
@@ -67,63 +59,45 @@ def push_file_to_github(path, content_str, sha, message):
     requests.put(url, json=payload, headers=HEADERS)
 
 def ingest_latest_race():
-    print("Starting OpenF1 2026 API ingestion sequence...")
-    
+    print("Starting Jolpica API ingestion sequence with Seat-Inheritance...")
     config, config_sha = fetch_file_from_github(CONFIG_PATH, is_json=True)
     if not config:
         sys.exit(1)
-        
+    
     existing_df, csv_sha = fetch_file_from_github(RESULTS_PATH, is_json=False)
     all_new_results = []
     updates_made = False
 
-    sessions_url = "https://api.openf1.org/v1/sessions?year=2026&session_type=Race"
-    session_res = requests.get(sessions_url)
-    if session_res.status_code != 200:
-        sys.exit(1)
+    for round_num in range(1, 25):
+        time.sleep(1) 
+        api_url = f"https://api.jolpi.ca/ergast/f1/current/{round_num}/results.json"
+        response = requests.get(api_url)
+        if response.status_code != 200:
+            break
+            
+        race_data = response.json().get("MRData", {}).get("RaceTable", {}).get("Races", [])
+        if not race_data:
+            break 
+            
+        race = race_data[0]
+        round_id = int(race["round"])
+        race_id = race["raceName"].lower().replace(" ", "_")
         
-    sessions = session_res.json()
-    sessions = sorted(sessions, key=lambda x: x.get("date_start", ""))
-    historical_rounds = [h.get("round") for h in config.get("history", [])]
-
-    for idx, session in enumerate(sessions):
-        round_id = idx + 1
-        session_key = session["session_key"]
-        race_id = session.get("session_name", f"round_{round_id}").lower().replace(" ", "_")
-        
+        historical_rounds = [h.get("round") for h in config.get("history", [])]
         if round_id in historical_rounds:
             continue
             
-        print(f"Ingesting Round {round_id}: {race_id} from OpenF1...")
+        print(f"Catching up Round {round_id}: {race_id}")
         updates_made = True
         
-        time.sleep(2.5)
-        drivers_res = requests.get(f"https://api.openf1.org/v1/drivers?session_key={session_key}")
-        drivers_list = drivers_res.json() if drivers_res.status_code == 200 else []
-        drivers_map = {d["driver_number"]: d for d in drivers_list}
-        
-        time.sleep(2.5)
-        results_res = requests.get(f"https://api.openf1.org/v1/session_result?session_key={session_key}")
-        results_list = results_res.json() if results_res.status_code == 200 else []
-        
-        if not results_list:
-            continue
-            
         team_drivers = {}
-        
-        for r in results_list:
-            # --- THE DEBUGGER IS HERE ---
-            if r.get("driver_number") == 1:
-                print(f"\n---> RAW OPENF1 DATA FOR VERSTAPPEN: {r} <---\n")
-
-            driver_num = r.get("driver_number")
-            driver_info = drivers_map.get(driver_num, {})
-            driver_name = driver_info.get("full_name", f"Unknown Driver {driver_num}")
-            last_name = driver_info.get("last_name", str(driver_num))
-            team_name = driver_info.get("team_name", "Unknown Team")
+        for r in race.get("Results", []):
+            driver_name = f"{r['Driver']['givenName']} {r['Driver']['familyName']}"
+            last_name = r['Driver']['familyName']
+            team_name = r["Constructor"]["name"]
             team_key = get_team_key(team_name)
             
-            # Temporary safety logic so the script doesn't crash while we debug
+            # --- STRICT DNF ENFORCEMENT ---
             status = str(r.get("status", "")).strip().lower()
             if "lap" in status or status == "finished":
                 pos_val = r.get("position")
@@ -137,12 +111,12 @@ def ingest_latest_race():
                 "position": position,
                 "team_name": team_name
             })
-            
-        for team_key, drivers_list_team in team_drivers.items():
+
+        for team_key, drivers_list in team_drivers.items():
             team_seats = sorted([k for k in config["seats"].keys() if k.startswith(team_key + "_")])
             unmatched_drivers = []
             
-            for d_info in drivers_list_team:
+            for d_info in drivers_list:
                 placed = False
                 for s in team_seats:
                     current_d = config["seats"][s]["current_driver"]
@@ -160,10 +134,11 @@ def ingest_latest_race():
                     
             for s in team_seats:
                 current_d = config["seats"][s]["current_driver"]
-                is_in_race = any(normalize_string(current_d.split()[-1]) in normalize_string(dr["last_name"]) for dr in drivers_list_team)
+                is_in_race = any(normalize_string(current_d.split()[-1]) in normalize_string(dr["last_name"]) for dr in drivers_list)
                 
                 if not is_in_race and unmatched_drivers:
                     new_d_info = unmatched_drivers.pop(0)
+                    print(f"  -> Mid-Season Swap: {new_d_info['driver_name']} takes over {s} from {current_d}")
                     config["seats"][s]["current_driver"] = new_d_info["driver_name"]
                     
                     all_new_results.append({
@@ -182,9 +157,8 @@ def ingest_latest_race():
     if updates_made:
         new_results_df = pd.DataFrame(all_new_results)
         final_df = pd.concat([existing_df, new_results_df], ignore_index=True) if not existing_df.empty else new_results_df
-        
-        push_file_to_github(CONFIG_PATH, json.dumps(config, indent=2), config_sha, "Ingested OpenF1 configurations")
-        push_file_to_github(RESULTS_PATH, final_df.to_csv(index=False), csv_sha, "Appended OpenF1 race results")
+        push_file_to_github(CONFIG_PATH, json.dumps(config, indent=2), config_sha, "Ingested configurations")
+        push_file_to_github(RESULTS_PATH, final_df.to_csv(index=False), csv_sha, "Appended race results")
         print("Catch-up complete!")
 
 if __name__ == "__main__":
