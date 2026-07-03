@@ -136,6 +136,7 @@ with tab_leaderboard:
                 
                 # --- NEW DRIVER STANDINGS TABLE ---
                 st.subheader("Driver Breakdown")
+                st.dataframe(results_data)
                 # Calculate raw points directly from results_data to isolate the math
                 results_data["points"] = results_data["position"].apply(compute_points)
                 driver_totals = results_data.groupby(["driver", "team"])["points"].sum().reset_index()
