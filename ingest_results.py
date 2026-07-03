@@ -20,11 +20,9 @@ HEADERS = {
 }
 
 def normalize_string(s):
-    """Removes accents and standardizes text for fuzzy matching."""
     return unicodedata.normalize('NFKD', s).encode('ASCII', 'ignore').decode('utf-8').lower()
 
 def get_team_key(api_team_name):
-    """Maps the OpenF1 team designations to your internal 2026 fantasy keys."""
     t = api_team_name.lower().replace(" ", "")
     if "redbull" in t: return "red_bull"
     if "mercedes" in t: return "mercedes"
@@ -47,16 +45,14 @@ def fetch_file_from_github(path, is_json=True):
         if is_json:
             try:
                 return json.loads(content), res.json()["sha"]
-            except json.JSONDecodeError as e:
-                print(f"CRITICAL ERROR: {path} is not valid JSON. ({e})")
+            except:
                 sys.exit(1)
         else:
             try:
                 if not content.strip():
                     return pd.DataFrame(), res.json()["sha"]
                 return pd.read_csv(StringIO(content)), res.json()["sha"]
-            except Exception as e:
-                print(f"CRITICAL ERROR reading CSV: {e}")
+            except:
                 sys.exit(1)
     return (None, None) if is_json else (pd.DataFrame(), None)
 
@@ -81,11 +77,9 @@ def ingest_latest_race():
     all_new_results = []
     updates_made = False
 
-    # 1. Fetch all 2026 Race Sessions
     sessions_url = "https://api.openf1.org/v1/sessions?year=2026&session_type=Race"
     session_res = requests.get(sessions_url)
     if session_res.status_code != 200:
-        print("Failed to fetch sessions from OpenF1.")
         sys.exit(1)
         
     sessions = session_res.json()
@@ -103,45 +97,34 @@ def ingest_latest_race():
         print(f"Ingesting Round {round_id}: {race_id} from OpenF1...")
         updates_made = True
         
-        # OpenF1 Rate Limit Protection
         time.sleep(2.5)
-        
-        # 2. Fetch Drivers for this specific session
         drivers_res = requests.get(f"https://api.openf1.org/v1/drivers?session_key={session_key}")
         drivers_list = drivers_res.json() if drivers_res.status_code == 200 else []
         drivers_map = {d["driver_number"]: d for d in drivers_list}
         
         time.sleep(2.5)
-        
-        # 3. Fetch Final Classifications
         results_res = requests.get(f"https://api.openf1.org/v1/session_result?session_key={session_key}")
         results_list = results_res.json() if results_res.status_code == 200 else []
         
         if not results_list:
-            print(f"No results published yet for {race_id}.")
             continue
             
         team_drivers = {}
         
         for r in results_list:
-            # --- DEBUGGER: Print the raw OpenF1 payload for Max Verstappen ---
+            # --- THE DEBUGGER IS HERE ---
             if r.get("driver_number") == 1:
-                print(f"RAW OPENF1 DATA: {r}")
-                
-            driver_num = r.get("driver_number")
+                print(f"\n---> RAW OPENF1 DATA FOR VERSTAPPEN: {r} <---\n")
+
             driver_num = r.get("driver_number")
             driver_info = drivers_map.get(driver_num, {})
-            
             driver_name = driver_info.get("full_name", f"Unknown Driver {driver_num}")
             last_name = driver_info.get("last_name", str(driver_num))
             team_name = driver_info.get("team_name", "Unknown Team")
             team_key = get_team_key(team_name)
             
-            # --- STRICT DNF ENFORCEMENT UPDATE ---
+            # Temporary safety logic so the script doesn't crash while we debug
             status = str(r.get("status", "")).strip().lower()
-            
-            # If status contains "lap" (e.g., "+1 Lap") or is exactly "finished", they get points.
-            # Any other string ("accident", "gearbox", "retired") is a hard DNF.
             if "lap" in status or status == "finished":
                 pos_val = r.get("position")
                 position = int(float(pos_val)) if pos_val else "DNF"
@@ -155,7 +138,6 @@ def ingest_latest_race():
                 "team_name": team_name
             })
             
-        # 4. Execute Seat-Inheritance Protocol
         for team_key, drivers_list_team in team_drivers.items():
             team_seats = sorted([k for k in config["seats"].keys() if k.startswith(team_key + "_")])
             unmatched_drivers = []
@@ -182,7 +164,6 @@ def ingest_latest_race():
                 
                 if not is_in_race and unmatched_drivers:
                     new_d_info = unmatched_drivers.pop(0)
-                    print(f"  -> Mid-Season Swap: {new_d_info['driver_name']} takes over {s} from {current_d}")
                     config["seats"][s]["current_driver"] = new_d_info["driver_name"]
                     
                     all_new_results.append({
@@ -205,8 +186,6 @@ def ingest_latest_race():
         push_file_to_github(CONFIG_PATH, json.dumps(config, indent=2), config_sha, "Ingested OpenF1 configurations")
         push_file_to_github(RESULTS_PATH, final_df.to_csv(index=False), csv_sha, "Appended OpenF1 race results")
         print("Catch-up complete!")
-    else:
-        print("No new races to ingest.")
 
 if __name__ == "__main__":
     ingest_latest_race()
