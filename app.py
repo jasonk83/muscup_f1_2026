@@ -190,6 +190,68 @@ with tab_leaderboard:
     else:
         st.info("No race results have been recorded for the season yet.")
 
+import plotly.express as px
+
+# --- ADD THIS TO THE BOTTOM OF TAB 1 ---
+        # Draw a divider under your columns
+        st.divider()
+        
+        st.subheader("Top 5 Drivers: Points Progression")
+        
+        # F1 Team Color Mapping
+        TEAM_COLORS = {
+            "Mercedes": "#00D2BE",
+            "McLaren": "#FF8000",
+            "Ferrari": "#DC0000",
+            "Red Bull Racing": "#3671C6",
+            "Williams": "#005AFF",
+            "Alpine": "#FF87BC", # Pink/Blue depending on livery, Pink is common for Alpine
+            "Haas F1 Team": "#E6002B",
+            "Kick Sauber": "#00E701",
+            "Sauber": "#00E701",
+            "Aston Martin": "#229971",
+            "RB": "#6692FF",
+            "Racing Bulls": "#6692FF",
+            "Cadillac": "#FFB81C" 
+        }
+
+        # 1. Ensure raw points are calculated
+        if "points" not in results_data.columns:
+            results_data["points"] = results_data["position"].apply(compute_points)
+            
+        # 2. Identify the top 5 drivers by total points
+        top_drivers_series = results_data.groupby("driver")["points"].sum().nlargest(5)
+        top_5_names = top_drivers_series.index.tolist()
+        
+        # 3. Filter the data to only those 5 drivers
+        top_5_df = results_data[results_data["driver"].isin(top_5_names)].copy()
+        
+        # 4. Sort chronologically and calculate cumulative sum
+        top_5_df = top_5_df.sort_values(by=["driver", "round"])
+        top_5_df["Cumulative Points"] = top_5_df.groupby("driver")["points"].cumsum()
+        
+        # 5. Map each driver to their most recent team for accurate coloring
+        driver_to_team = top_5_df.drop_duplicates(subset=["driver"], keep="last").set_index("driver")["team"].to_dict()
+        color_map = {driver: TEAM_COLORS.get(team, "#A8A8A8") for driver, team in driver_to_team.items()}
+        
+        # 6. Generate the Plotly Line Chart
+        fig_drivers = px.line(
+            top_5_df,
+            x="round",
+            y="Cumulative Points",
+            color="driver",
+            markers=True,
+            color_discrete_map=color_map,
+            labels={"round": "Race Round", "Cumulative Points": "Total Points", "driver": "Driver"}
+        )
+        
+        fig_drivers.update_layout(
+            hovermode="x unified",
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1)
+        )
+        
+        st.plotly_chart(fig_drivers, use_container_width=True)
+
 # --- TAB 2: MONTE CARLO PREDICTOR MODEL ---
 with tab_simulation:
     st.header("Championship Projection Engine")
