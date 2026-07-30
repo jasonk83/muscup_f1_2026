@@ -312,8 +312,9 @@ if config_data and not results_data.empty:
                 
                 # We draw the laps chronologically so the newest lap renders strictly on top
                 for i, lap in enumerate(laps):
-                    # Base opacity of 0.15 for lap 1, up to 1.0 for the final lap
-                    opacity = 0.15 + (0.85 * (i / max(1, total_laps - 1)))
+                    # With only 5 laps, we adjust the opacity scale to be much bolder
+                    # The earliest lap starts at 40% opacity, the final lap is 100% opacity
+                    opacity = 0.4 + (0.6 * (i / max(1, total_laps - 1)))
                     
                     colors = []
                     for state in lap["s"]:
