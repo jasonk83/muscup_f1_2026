@@ -29,6 +29,9 @@ jobs:
 
       - name: Run Telemetry Ingestion
         run: python ingest_telemetry.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
       - name: Execute API Fetch and Logic Loop
         env:
