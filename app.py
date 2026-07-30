@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import json
 import plotly.express as px
+import plotly.graph_objects as go
 
 # --- SETUP & CONSTANTS ---
 st.set_page_config(page_title="MusCup F1 2026 Dashboard", layout="wide")
@@ -91,7 +92,12 @@ st.title("🏎️ MusCup 2026 F1 Fantasy Tracker")
 config_data, results_data = load_data()
 
 if config_data and not results_data.empty:
-    tab_leaderboard, tab_monte_carlo, tab_admin = st.tabs(["📊 Leaderboard", "🎲 Monte Carlo Projections", "⚙️ Admin & Draft"])
+    tab_leaderboard, tab_monte_carlo, tab_telemetry, tab_admin = st.tabs([
+            "📊 Leaderboard", 
+            "🎲 Monte Carlo Projections", 
+            "🏎️ Telemetry Lab", 
+            "⚙️ Admin & Draft"
+        ])
     
     # --- TAB 1: LEADERBOARD & CHARTS ---
     with tab_leaderboard:
@@ -268,8 +274,84 @@ if config_data and not results_data.empty:
                 st.dataframe(avg_final.style.format({"Projected Points": "{:.0f}"}), use_container_width=True)
         else:
             st.success("The season is complete! No remaining races to simulate.")
-
-    # --- TAB 3: ADMIN & DRAFT ---
+            
+# --- TAB 3: TELEMETRY LAB ---
+    with tab_telemetry:
+        st.header("Driver Telemetry & Track Analysis")
+        st.write("Visualizing lap-by-lap racing lines. Older laps fade into the background, with the final lap showing brightest. Green = Accelerating, Yellow = Coasting, Red = Braking.")
+        
+        try:
+            with open("telemetry_summary.json", "r") as f:
+                telemetry_data = json.load(f)
+                
+            race_name = telemetry_data.get("race_name", "Latest Race")
+            st.subheader(f"Grand Prix: {race_name}")
+            
+            drivers_dict = telemetry_data.get("drivers", {})
+            driver_options = list(drivers_dict.keys())
+            
+            if driver_options:
+                selected_driver = st.selectbox("Select Driver", driver_options, format_func=lambda x: drivers_dict[x]["name"])
+                driver_info = drivers_dict[selected_driver]
+                
+                # Metrics Row
+                col_met1, col_met2, col_met3, col_met4 = st.columns(4)
+                col_met1.metric("Total Race Time", driver_info["total_time"])
+                col_met2.metric("Best Lap Time", driver_info["best_lap"])
+                col_met3.metric("Top Speed (km/h)", f"{driver_info['top_speed_kph']} km/h")
+                col_met4.metric("Top Speed (mph)", f"{driver_info['top_speed_mph']} mph")
+                
+                st.divider()
+                
+                # Render the 2D Ghost Stack Track Map
+                import plotly.graph_objects as go
+                fig_track = go.Figure()
+                
+                laps = driver_info.get("laps", [])
+                total_laps = len(laps)
+                
+                # We draw the laps chronologically so the newest lap renders strictly on top
+                for i, lap in enumerate(laps):
+                    # Base opacity of 0.15 for lap 1, up to 1.0 for the final lap
+                    opacity = 0.15 + (0.85 * (i / max(1, total_laps - 1)))
+                    
+                    colors = []
+                    for state in lap["s"]:
+                        if state == 3:
+                            colors.append(f"rgba(239, 68, 68, {opacity})") # Red
+                        elif state == 1:
+                            colors.append(f"rgba(34, 197, 94, {opacity})") # Green
+                        else:
+                            colors.append(f"rgba(250, 204, 21, {opacity})") # Yellow
+                            
+                    fig_track.add_trace(go.Scatter(
+                        x=lap["x"],
+                        y=lap["y"],
+                        mode='markers',
+                        marker=dict(color=colors, size=6),
+                        hoverinfo='skip',
+                        name=f"Lap {i+1}",
+                        showlegend=False
+                    ))
+                
+                # Lock the aspect ratio so the track doesn't stretch when you resize the window
+                fig_track.update_layout(
+                    xaxis=dict(visible=False),
+                    yaxis=dict(visible=False, scaleanchor="x", scaleratio=1),
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(l=0, r=0, t=0, b=0),
+                    height=700
+                )
+                
+                st.plotly_chart(fig_track, use_container_width=True)
+            else:
+                st.info("No telemetry drivers available for this race.")
+                
+        except FileNotFoundError:
+            st.info("Telemetry data is currently being generated. Please check back after the GitHub Action completes.")
+            
+    # --- TAB 4: ADMIN & DRAFT ---
     with tab_admin:
         st.header("Draft Management & Admin")
         st.write("Modify seat ownership below. Changes will save to the local configuration.")
