@@ -48,9 +48,7 @@ def generate_telemetry_summary():
     # 1. Read local results to find the most recent round
     try:
         results_df = pd.read_csv("race_results.csv")
-    # Ensure round is numeric before finding max
         results_df['round'] = pd.to_numeric(results_df['round'], errors='coerce')
-        latest_round = int(results_df['round'].max())
         latest_round = int(results_df['round'].max())
     except Exception as e:
         print(f"Could not read race_results.csv to determine latest round: {e}")
@@ -76,7 +74,7 @@ def generate_telemetry_summary():
     # 3. Loop through every driver and extract every lap
     for index, row in results.iterrows():
         driver = row['Abbreviation']
-        driver_laps = laps.pick_driver(driver)
+        driver_laps = laps.pick_drivers(driver)
         
         if driver_laps.empty:
             continue
@@ -88,12 +86,15 @@ def generate_telemetry_summary():
         laps_data = []
         top_speed_kph = 0
         
+        # Filter out pit-stops, in-laps, out-laps, and Safety Car laps
+        clean_laps = driver_laps.pick_quicklaps()
+        
         # Build the chronological stack
-        for _, lap in driver_laps.iterlaps():
+        for _, lap in clean_laps.iterlaps():
             if pd.isna(lap['LapTime']):
                 continue
                 
-            tel = lap.get_telemetry().iloc[::5] # Downsample by 5 to keep file lightweight
+            tel = lap.get_telemetry().iloc[::2] 
             if tel.empty:
                 continue
                 
@@ -104,11 +105,11 @@ def generate_telemetry_summary():
             states = []
             for _, t_row in tel.iterrows():
                 if t_row['Brake'] > 0:
-                    states.append(3) # 3 = Braking
+                    states.append(3) 
                 elif t_row['Throttle'] > 90:
-                    states.append(1) # 1 = Accelerating
+                    states.append(1) 
                 else:
-                    states.append(2) # 2 = Coasting
+                    states.append(2) 
             
             laps_data.append({
                 "x": [round(x, 1) for x in tel['X'].tolist()],
@@ -118,11 +119,20 @@ def generate_telemetry_summary():
 
         top_speed_mph = top_speed_kph * 0.621371
 
+        # Safe Total Time Parsing
         total_time_td = row['Time']
-        total_time = str(total_time_td).split('.')[-2] if not pd.isna(total_time_td) else "DNF / Not Classified"
+        if pd.isna(total_time_td) or "NaT" in str(total_time_td):
+            total_time = "DNF / Not Classified"
+        else:
+            total_time = str(total_time_td).split('days ')[-1].split('.')[0]
         
+        # Safe Best Lap Parsing
         best_lap_td = fastest_lap['LapTime']
-        best_lap = str(best_lap_td).split('.')[-2][2:] if not pd.isna(best_lap_td) else "N/A"
+        if pd.isna(best_lap_td) or "NaT" in str(best_lap_td):
+            best_lap = "N/A"
+        else:
+            best_ts = best_lap_td.total_seconds()
+            best_lap = f"{int(best_ts // 60)}:{best_ts % 60:06.3f}"
 
         telemetry_db["drivers"][driver] = {
             "name": row['FullName'],
