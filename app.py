@@ -274,11 +274,10 @@ if config_data and not results_data.empty:
                 st.dataframe(avg_final.style.format({"Projected Points": "{:.0f}"}), use_container_width=True)
         else:
             st.success("The season is complete! No remaining races to simulate.")
-            
-        # --- TAB 3: TELEMETRY LAB ---
+# --- TAB 3: TELEMETRY LAB ---
     with tab_telemetry:
         st.header("Driver Telemetry & Track Analysis")
-        st.write("Visualizing a 15-lap ghost stack mapped by momentum. Green indicates the car is traveling at ≥50% of its top speed. Yellow indicates 36% - 49%. Red highlights low-speed technical zones (≤35%).")
+        st.write("Visualizing a full-race ghost stack mapped by momentum. Green indicates the car is traveling at ≥50% of its top speed. Yellow indicates 36% - 49%. Red highlights low-speed technical zones (≤35%).")
         
         try:
             with open("telemetry_summary.json", "r") as f:
@@ -308,8 +307,8 @@ if config_data and not results_data.empty:
                 total_laps = len(laps)
                 
                 for i, lap in enumerate(laps):
-                    # Ghosting math: 15 laps stack heavily, so we start at a faint 20% opacity
-                    opacity = 0.2 + (0.8 * (i / max(1, total_laps - 1))) if total_laps > 1 else 1.0
+                    # Ghosting math: With ~50-70 laps, we start at a very faint 5% opacity
+                    opacity = 0.05 + (0.95 * (i / max(1, total_laps - 1))) if total_laps > 1 else 1.0
                     
                     colors = []
                     for state in lap["s"]:
