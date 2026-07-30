@@ -22,7 +22,13 @@ jobs:
           python-version: '3.10'
 
       - name: Install Dependencies
-        run: pip install pandas requests
+        run: pip install pandas requests plotly fastf1
+
+      - name: Run Points Ingestion
+        run: python ingest_results.py
+
+      - name: Run Telemetry Ingestion
+        run: python ingest_telemetry.py
 
       - name: Execute API Fetch and Logic Loop
         env:
