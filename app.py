@@ -275,10 +275,10 @@ if config_data and not results_data.empty:
         else:
             st.success("The season is complete! No remaining races to simulate.")
             
-    # --- TAB 3: TELEMETRY LAB ---
+        # --- TAB 3: TELEMETRY LAB ---
     with tab_telemetry:
         st.header("Driver Telemetry & Track Analysis")
-        st.write("Visualizing a high-density ghost track built from the driver's top 15 quick laps. The dense gray dots map the pure racing line, while dynamically sized red dots reveal precise braking zones and pressure.")
+        st.write("Visualizing a 15-lap ghost stack mapped by momentum. Green indicates the car is traveling at ≥50% of its top speed. Yellow indicates 36% - 49%. Red highlights low-speed technical zones (≤35%).")
         
         try:
             with open("telemetry_summary.json", "r") as f:
@@ -304,33 +304,29 @@ if config_data and not results_data.empty:
                 
                 fig_track = go.Figure()
                 
-                track_data = driver_info.get("track_data", {})
+                laps = driver_info.get("laps", [])
+                total_laps = len(laps)
                 
-                # Layer 1: Gray Ghost Track (Dense background markers)
-                if "gray_x" in track_data and track_data["gray_x"]:
-                    fig_track.add_trace(go.Scatter(
-                        x=track_data["gray_x"],
-                        y=track_data["gray_y"],
-                        mode='markers',
-                        marker=dict(color='rgba(150, 150, 150, 0.4)', size=2), # Faint, semi-transparent gray dots
-                        hoverinfo='skip',
-                        name="Racing Line",
-                        showlegend=False
-                    ))
-                
-                # Layer 2: Red Braking Zones (Dynamically sized markers)
-                if "red_x" in track_data and track_data["red_x"]:
-                    brake_pressures = track_data["red_b"]
-                    # Scale brake pressure (0-100) to a marker size between 2 and 14
-                    scaled_sizes = [max(2, (b / 100.0) * 14) for b in brake_pressures]
+                for i, lap in enumerate(laps):
+                    # Ghosting math: 15 laps stack heavily, so we start at a faint 20% opacity
+                    opacity = 0.2 + (0.8 * (i / max(1, total_laps - 1))) if total_laps > 1 else 1.0
                     
+                    colors = []
+                    for state in lap["s"]:
+                        if state == 3:
+                            colors.append(f"rgba(239, 68, 68, {opacity})") # Red (<=35%)
+                        elif state == 1:
+                            colors.append(f"rgba(34, 197, 94, {opacity})") # Green (>=50%)
+                        else:
+                            colors.append(f"rgba(250, 204, 21, {opacity})") # Yellow (36-49%)
+                            
                     fig_track.add_trace(go.Scatter(
-                        x=track_data["red_x"],
-                        y=track_data["red_y"],
+                        x=lap["x"],
+                        y=lap["y"],
                         mode='markers',
-                        marker=dict(color='rgba(239, 68, 68, 0.7)', size=scaled_sizes), # Bright red braking dots
+                        marker=dict(color=colors, size=3),
                         hoverinfo='skip',
-                        name="Braking Zones",
+                        name=f"Lap {i+1}",
                         showlegend=False
                     ))
                 
