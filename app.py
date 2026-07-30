@@ -328,7 +328,7 @@ if config_data and not results_data.empty:
                         x=lap["x"],
                         y=lap["y"],
                         mode='markers',
-                        marker=dict(color=colors, size=6),
+                        marker=dict(color=colors, size=3),
                         hoverinfo='skip',
                         name=f"Lap {i+1}",
                         showlegend=False
