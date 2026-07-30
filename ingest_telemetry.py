@@ -48,6 +48,9 @@ def generate_telemetry_summary():
     # 1. Read local results to find the most recent round
     try:
         results_df = pd.read_csv("race_results.csv")
+    # Ensure round is numeric before finding max
+        results_df['round'] = pd.to_numeric(results_df['round'], errors='coerce')
+        latest_round = int(results_df['round'].max())
         latest_round = int(results_df['round'].max())
     except Exception as e:
         print(f"Could not read race_results.csv to determine latest round: {e}")
