@@ -21,11 +21,14 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: pip install pandas requests plotly fastf1
 
       - name: Run Points Ingestion
         run: python ingest_results.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
       - name: Run Telemetry Ingestion
         run: python ingest_telemetry.py
