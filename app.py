@@ -278,7 +278,7 @@ if config_data and not results_data.empty:
     # --- TAB 3: TELEMETRY LAB ---
     with tab_telemetry:
         st.header("Driver Telemetry & Track Analysis")
-        st.write("Visualizing racing lines over the circuit blueprint. Older laps fade into the background, with the fastest lap showing brightest. Green = Accelerating, Yellow = Coasting, Red = Braking.")
+        st.write("Visualizing graceful track curves over the circuit blueprint. The solid green line represents momentum and acceleration. Dynamically sized red dots indicate braking zones and pressure intensity.")
         
         try:
             with open("telemetry_summary.json", "r") as f:
@@ -294,7 +294,6 @@ if config_data and not results_data.empty:
                 selected_driver = st.selectbox("Select Driver", driver_options, format_func=lambda x: drivers_dict[x]["name"])
                 driver_info = drivers_dict[selected_driver]
                 
-                # Metrics Row
                 col_met1, col_met2, col_met3, col_met4 = st.columns(4)
                 col_met1.metric("Total Race Time", driver_info["total_time"])
                 col_met2.metric("Best Lap Time", driver_info["best_lap"])
@@ -305,14 +304,14 @@ if config_data and not results_data.empty:
                 
                 fig_track = go.Figure()
                 
-                # 1. Render Background Track Blueprint (Circuit Outline)
+                # 1. Render Background Track Blueprint
                 if "reference_track" in telemetry_data:
                     ref = telemetry_data["reference_track"]
                     fig_track.add_trace(go.Scatter(
                         x=ref["x"],
                         y=ref["y"],
                         mode='lines',
-                        line=dict(color='rgba(255, 255, 255, 0.25)', width=5),
+                        line=dict(color='rgba(255, 255, 255, 0.25)', width=4),
                         hoverinfo='skip',
                         name="Track Blueprint",
                         showlegend=False
@@ -325,24 +324,45 @@ if config_data and not results_data.empty:
                 for i, lap in enumerate(laps):
                     opacity = 0.4 + (0.6 * (i / max(1, total_laps - 1))) if total_laps > 1 else 1.0
                     
-                    colors = []
-                    for state in lap["s"]:
-                        if state == 3:
-                            colors.append(f"rgba(239, 68, 68, {opacity})") # Red
-                        elif state == 1:
-                            colors.append(f"rgba(34, 197, 94, {opacity})") # Green
-                        else:
-                            colors.append(f"rgba(250, 204, 21, {opacity})") # Yellow
-                            
+                    x_coords = lap["x"]
+                    y_coords = lap["y"]
+                    brakes = lap["b"]
+                    
+                    # Layer A: Smooth continuous green line for the entire lap
                     fig_track.add_trace(go.Scatter(
-                        x=lap["x"],
-                        y=lap["y"],
-                        mode='markers',
-                        marker=dict(color=colors, size=4),
+                        x=x_coords,
+                        y=y_coords,
+                        mode='lines',
+                        line=dict(color=f"rgba(34, 197, 94, {opacity})", width=2), # Green
                         hoverinfo='skip',
-                        name=f"Lap {i+1}",
+                        name=f"Lap {i+1} Racing Line",
                         showlegend=False
                     ))
+                    
+                    # Layer B: Extract braking zones and dynamically size the red markers
+                    brake_x = []
+                    brake_y = []
+                    brake_sizes = []
+                    
+                    for j, b in enumerate(brakes):
+                        if b > 5:  # Filter out resting foot noise
+                            if x_coords[j] is not None and y_coords[j] is not None:
+                                brake_x.append(x_coords[j])
+                                brake_y.append(y_coords[j])
+                                # Scale the 0-100 brake pressure to a marker size between 2 and 12
+                                size = max(2, (b / 100.0) * 12)
+                                brake_sizes.append(size)
+                    
+                    if brake_x:
+                        fig_track.add_trace(go.Scatter(
+                            x=brake_x,
+                            y=brake_y,
+                            mode='markers',
+                            marker=dict(color=f"rgba(239, 68, 68, {opacity})", size=brake_sizes), # Red
+                            hoverinfo='skip',
+                            name=f"Lap {i+1} Braking",
+                            showlegend=False
+                        ))
                 
                 fig_track.update_layout(
                     xaxis=dict(visible=False),
@@ -359,7 +379,8 @@ if config_data and not results_data.empty:
                 
         except FileNotFoundError:
             st.info("Telemetry data is currently being generated. Please check back after the GitHub Action completes.")
-            
+
+    
     # --- TAB 4: ADMIN & DRAFT ---
     with tab_admin:
         st.header("Draft Management & Admin")
