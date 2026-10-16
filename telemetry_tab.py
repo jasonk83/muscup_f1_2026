@@ -160,22 +160,28 @@ def render_telemetry_tab(default_year: int = 2026):
             )
 
     # Extract Telemetry
-    lap1_obj = session.laps.pick_drivers(driver1_code).pick_laps(lap1_num).iloc[0]
-    tel1 = ts.extract_lap_telemetry(lap1_obj, session)
+    if getattr(session, "is_openf1", False):
+        tel1 = ts.extract_lap_telemetry(None, session, driver_code=driver1_code, lap_number=lap1_num)
+        tel2 = ts.extract_lap_telemetry(None, session, driver_code=driver2_code, lap_number=lap2_num) if driver2_code else None
+    else:
+        lap1_obj = session.laps.pick_drivers(driver1_code).pick_laps(lap1_num).iloc[0]
+        tel1 = ts.extract_lap_telemetry(lap1_obj, session)
+        if driver2_code:
+            lap2_obj = session.laps.pick_drivers(driver2_code).pick_laps(lap2_num).iloc[0]
+            tel2 = ts.extract_lap_telemetry(lap2_obj, session)
+        else:
+            tel2 = None
 
-    tel2 = None
     delta_df = None
-    if driver2_code:
-        lap2_obj = session.laps.pick_drivers(driver2_code).pick_laps(lap2_num).iloc[0]
-        tel2 = ts.extract_lap_telemetry(lap2_obj, session)
-        h2h_data = ts.compute_head_to_head_telemetry(lap1_obj, lap2_obj, session)
+    if driver2_code and tel2 is not None and not tel2.empty:
+        h2h_data = ts.compute_head_to_head_telemetry(tel1, tel2)
         delta_df = h2h_data.get("delta")
 
     if tel1.empty:
         st.error("Telemetry channels could not be extracted for this lap.")
         return
 
-    corners_df, _ = ts.get_circuit_layout_and_corners(session)
+    corners_df, _ = ts.get_circuit_layout_and_corners(session, ref_tel=tel1)
 
     # Scrubber
     max_lap_dist = float(tel1["Distance"].max())
