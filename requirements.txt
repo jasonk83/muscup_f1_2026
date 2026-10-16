@@ -4,3 +4,4 @@ numpy
 requests
 plotly
 fastf1
+scipy

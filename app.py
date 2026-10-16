@@ -7,15 +7,17 @@ import plotly.graph_objects as go
 import os
 import sys
 
-# Connect to modular f1_telemety engine
-telem_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "f1_telemety"))
-if telem_dir not in sys.path:
-    sys.path.insert(0, telem_dir)
-
 try:
     import telemetry_tab
 except ImportError:
-    telemetry_tab = None
+    # Sibling directory fallback for local development
+    telem_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "f1_telemety"))
+    if telem_dir not in sys.path:
+        sys.path.insert(0, telem_dir)
+    try:
+        import telemetry_tab
+    except ImportError:
+        telemetry_tab = None
 
 # --- SETUP & CONSTANTS ---
 st.set_page_config(page_title="MusCup F1 2026 Dashboard", layout="wide")
