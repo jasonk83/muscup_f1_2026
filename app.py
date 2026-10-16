@@ -4,6 +4,18 @@ import numpy as np
 import json
 import plotly.express as px
 import plotly.graph_objects as go
+import os
+import sys
+
+# Connect to modular f1_telemety engine
+telem_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "f1_telemety"))
+if telem_dir not in sys.path:
+    sys.path.insert(0, telem_dir)
+
+try:
+    import telemetry_tab
+except ImportError:
+    telemetry_tab = None
 
 # --- SETUP & CONSTANTS ---
 st.set_page_config(page_title="MusCup F1 2026 Dashboard", layout="wide")
@@ -276,74 +288,71 @@ if config_data and not results_data.empty:
             st.success("The season is complete! No remaining races to simulate.")
 # --- TAB 3: TELEMETRY LAB ---
     with tab_telemetry:
-        st.header("Driver Telemetry & Track Analysis")
-        st.write("Visualizing a full-race ghost stack mapped by momentum. Green indicates the car is traveling at ≥50% of its top speed. Yellow indicates 36% - 49%. Red highlights low-speed technical zones (≤35%).")
-        
-        try:
-            with open("telemetry_summary.json", "r") as f:
-                telemetry_data = json.load(f)
-                
-            race_name = telemetry_data.get("race_name", "Latest Race")
-            st.subheader(f"Grand Prix: {race_name}")
+        if telemetry_tab is not None:
+            telemetry_tab.render_telemetry_tab(default_year=2026)
             
-            drivers_dict = telemetry_data.get("drivers", {})
-            driver_options = list(drivers_dict.keys())
-            
-            if driver_options:
-                selected_driver = st.selectbox("Select Driver", driver_options, format_func=lambda x: drivers_dict[x]["name"])
-                driver_info = drivers_dict[selected_driver]
-                
-                col_met1, col_met2, col_met3, col_met4 = st.columns(4)
-                col_met1.metric("Total Race Time", driver_info["total_time"])
-                col_met2.metric("Best Lap Time", driver_info["best_lap"])
-                col_met3.metric("Top Speed (km/h)", f"{driver_info['top_speed_kph']} km/h")
-                col_met4.metric("Top Speed (mph)", f"{driver_info['top_speed_mph']} mph")
-                
-                st.divider()
-                
-                fig_track = go.Figure()
-                
-                laps = driver_info.get("laps", [])
-                total_laps = len(laps)
-                
-                for i, lap in enumerate(laps):
-                    # Ghosting math: With ~50-70 laps, we start at a very faint 5% opacity
-                    opacity = 0.05 + (0.95 * (i / max(1, total_laps - 1))) if total_laps > 1 else 1.0
+            with st.expander("📂 View Legacy Static Ghost Stack Summary", expanded=False):
+                try:
+                    with open("telemetry_summary.json", "r") as f:
+                        telemetry_data = json.load(f)
+                        
+                    race_name = telemetry_data.get("race_name", "Latest Race")
+                    st.subheader(f"Grand Prix: {race_name}")
                     
-                    colors = []
-                    for state in lap["s"]:
-                        if state == 3:
-                            colors.append(f"rgba(239, 68, 68, {opacity})") # Red (<=35%)
-                        elif state == 1:
-                            colors.append(f"rgba(34, 197, 94, {opacity})") # Green (>=50%)
-                        else:
-                            colors.append(f"rgba(250, 204, 21, {opacity})") # Yellow (36-49%)
-                            
-                    fig_track.add_trace(go.Scatter(
-                        x=lap["x"],
-                        y=lap["y"],
-                        mode='markers',
-                        marker=dict(color=colors, size=3),
-                        hoverinfo='skip',
-                        name=f"Lap {i+1}",
-                        showlegend=False
-                    ))
-                
-                fig_track.update_layout(
-                    xaxis=dict(visible=False),
-                    yaxis=dict(visible=False, scaleanchor="x", scaleratio=1),
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    margin=dict(l=0, r=0, t=0, b=0),
-                    height=700
-                )
-                
-                st.plotly_chart(fig_track, use_container_width=True)
-            else:
-                st.info("No telemetry drivers available for this race.")
-                
-        except FileNotFoundError:
-            st.info("Telemetry data is currently being generated. Please check back after the GitHub Action completes.")
+                    drivers_dict = telemetry_data.get("drivers", {})
+                    driver_options = list(drivers_dict.keys())
+                    
+                    if driver_options:
+                        selected_driver = st.selectbox("Select Driver (Summary)", driver_options, format_func=lambda x: drivers_dict[x]["name"], key="legacy_driver_select")
+                        driver_info = drivers_dict[selected_driver]
+                        
+                        col_met1, col_met2, col_met3, col_met4 = st.columns(4)
+                        col_met1.metric("Total Race Time", driver_info["total_time"])
+                        col_met2.metric("Best Lap Time", driver_info["best_lap"])
+                        col_met3.metric("Top Speed (km/h)", f"{driver_info['top_speed_kph']} km/h")
+                        col_met4.metric("Top Speed (mph)", f"{driver_info['top_speed_mph']} mph")
+                        
+                        st.divider()
+                        
+                        fig_track = go.Figure()
+                        laps = driver_info.get("laps", [])
+                        total_laps = len(laps)
+                        
+                        for i, lap in enumerate(laps):
+                            opacity = 0.05 + (0.95 * (i / max(1, total_laps - 1))) if total_laps > 1 else 1.0
+                            colors = []
+                            for state in lap["s"]:
+                                if state == 3:
+                                    colors.append(f"rgba(239, 68, 68, {opacity})")
+                                elif state == 1:
+                                    colors.append(f"rgba(34, 197, 94, {opacity})")
+                                else:
+                                    colors.append(f"rgba(250, 204, 21, {opacity})")
+                                    
+                            fig_track.add_trace(go.Scatter(
+                                x=lap["x"],
+                                y=lap["y"],
+                                mode='markers',
+                                marker=dict(color=colors, size=3),
+                                hoverinfo='skip',
+                                name=f"Lap {i+1}",
+                                showlegend=False
+                            ))
+                        
+                        fig_track.update_layout(
+                            xaxis=dict(visible=False),
+                            yaxis=dict(visible=False, scaleanchor="x", scaleratio=1),
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            margin=dict(l=0, r=0, t=0, b=0),
+                            height=550
+                        )
+                        st.plotly_chart(fig_track, use_container_width=True)
+                except Exception as e:
+                    st.info("Legacy summary file not loaded.")
+        else:
+            st.header("Driver Telemetry & Track Analysis")
+            st.info("Interactive Telemetry Lab package is loading...")
 
     
     # --- TAB 4: ADMIN & DRAFT ---
