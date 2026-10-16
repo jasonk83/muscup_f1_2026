@@ -7,6 +7,11 @@ import plotly.graph_objects as go
 import os
 import sys
 
+# NumPy 2.0+ compatibility patch for FastF1
+for _alias, _target in [("NaN", np.nan), ("Inf", np.inf), ("PINF", np.inf), ("NINF", -np.inf)]:
+    if not hasattr(np, _alias):
+        setattr(np, _alias, _target)
+
 try:
     import telemetry_tab
 except ImportError:

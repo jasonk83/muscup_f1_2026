@@ -7,6 +7,12 @@ directly into existing Streamlit applications (such as muscup_f1_2026/app.py).
 import streamlit as st
 import pandas as pd
 import numpy as np
+
+# NumPy 2.0+ compatibility patch for FastF1
+for _alias, _target in [("NaN", np.nan), ("Inf", np.inf), ("PINF", np.inf), ("NINF", -np.inf)]:
+    if not hasattr(np, _alias):
+        setattr(np, _alias, _target)
+
 import fastf1
 import sys
 import os

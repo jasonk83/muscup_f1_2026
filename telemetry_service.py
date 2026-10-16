@@ -8,10 +8,16 @@ Powered by FastF1 with local caching and OpenF1 REST fallback support.
 import os
 import sys
 import logging
+import numpy as np
+
+# NumPy 2.0+ compatibility patch for FastF1
+for _alias, _target in [("NaN", np.nan), ("Inf", np.inf), ("PINF", np.inf), ("NINF", -np.inf)]:
+    if not hasattr(np, _alias):
+        setattr(np, _alias, _target)
+
 import fastf1
 from fastf1 import plotting, utils
 import pandas as pd
-import numpy as np
 import requests
 from typing import Dict, List, Optional, Tuple, Any
 
